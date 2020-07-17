@@ -1,0 +1,88 @@
+---
+title: "Time_Series_Covid_Project"
+author: "Reagan Meagher"
+date: "7/13/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#Global Options
+remove(list = ls())
+
+#Load Packages
+library(tidyverse)
+library(dplyr)
+library(tseries)
+library(ggplot2)
+library(forecast)
+library(tswge)
+library(tseries)
+library(orcutt)
+library(mice)
+```
+
+```{r}
+initial_data_fl <- read.csv(file="https://raw.githubusercontent.com/megnn/TimeSeries_Covid/master/covidtracking_FL_data.csv", header=TRUE)
+initial_data_us <- read.csv(file="https://raw.githubusercontent.com/megnn/TimeSeries_Covid/master/covidtracking_US_data.csv", header=TRUE)
+
+initial_data_fl = initial_data_fl[order(nrow(initial_data_fl):1),]
+initial_data_us = initial_data_us[order(nrow(initial_data_us):1),]
+```
+
+```{r}
+for (i in 1:nrow(initial_data_fl)) {
+  n <- round((initial_data_fl$positiveIncrease / initial_data_fl$totalTestResultsIncrease) * 100, digits = 4)
+  initial_data_fl$positive_percentage <- n
+}
+
+for (i in 1:nrow(initial_data_us)) {
+  n <- round((initial_data_us$positiveIncrease / initial_data_us$totalTestResultsIncrease) * 100, digits = 4)
+  initial_data_us$positive_percentage <- n
+}
+
+len_fl = dim(initial_data_fl)[1]
+len_us = dim(initial_data_us)[1]
+```
+
+```{r}
+final_fl <- select(initial_data_fl, c("date", "positiveIncrease"))
+final_us <- select(initial_data_us, c("date", "positiveIncrease"))
+```
+
+plotts.sample.wge(data$V2)
+
+```{r}
+plot(x = seq(1,len_fl), y = final_fl$positiveIncrease, type = "l")
+plot(x = seq(1,len_us), y = final_us$positiveIncrease, type = "l")
+```
+
+```{r NA eval}
+#Checking for NAs
+md.pattern(final_fl)
+#Drop NAs that are present
+final_fl <- na.omit(final_fl)
+
+#Checking for NAs
+md.pattern(final_us)
+#Drop NAs that are present
+final_us <- na.omit(final_us)
+```
+
+```{r}
+plotts.sample.wge(final_fl$positiveIncrease)
+```
+
+```{r}
+plotts.sample.wge(final_us$positiveIncrease)
+```
+
+```{r}
+aic5.wge(final_fl$positiveIncrease)
+aic5.wge(final_fl$positiveIncrease, type = 'bic')
+
+est.arma.wge(final_fl$positiveIncrease, p = 2, q = 1)
+```
+
+
+
