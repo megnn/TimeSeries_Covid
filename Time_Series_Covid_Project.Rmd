@@ -76,6 +76,19 @@ plot(x = seq(45:177), y = initial_data_us[45:177,26], type = "l")
 
 ```
 
+The case agains positive percentages. Positive Percentage as a metric is a measure of two main things, how many tests are we administering and how many positives are we receiving. If tests are skyrocketing while positives are increasing, we would see a stable line which could indicate not a pandemic under control but simply better testing resources. 
+
+Keeping tests increasing to continue to keep percent positives level is a good indication we have leveled up our resources to continue to diagnose the pandemic at the same level, but if we need to scale up our testing to keep the same positive percentage, there is more covid spread. 
+
+An increasing positive percentage is a good indicator that our testing resources may not be up to actually up to tracking the current stage of the pandemic. 
+
+
+```{r}
+plot(x = seq(1:len_us), y = initial_data_us$totalTestResultsIncrease, type = "l")
+plot(x = seq(1:len_fl), y = initial_data_fl$totalTestResultsIncrease, type = "l")
+
+```
+
 
 Setting up data frames for predicting cases. 
 
@@ -147,5 +160,21 @@ us_arima_est = est.arma.wge(newcases_us_diff$positiveIncrease_diff, p = 6, q = 2
 ```
 
 
+Exploration of Hospitlizations. Currently Hospitalized offers a clear curve on how sever the outbreak currently is but Florida doesn't have that metric. Hospitalized Increase may be a great indicator of Covid severity but can lag behind cases in general if we assume the hospitalizaiton occurs after a positive test, important to note this is not always the case. 
+
+```{r}
+plot(x = seq(1:len_us), y = initial_data_us$hospitalizedIncrease, type = "l")
+
+plot(x = seq(1:len_us), y = initial_data_us$hospitalizedCurrently, type = "l")
+
+
+plot(x = seq(1:len_fl), y = initial_data_fl$hospitalizedIncrease, type = "l")
+#Newly updated not a great # to use for fl, good for us as whole
+plot(x = seq(1:len_fl), y = initial_data_fl$hospitalizedCurrently, type = "l")
+
+
+
+
+```
 
 
