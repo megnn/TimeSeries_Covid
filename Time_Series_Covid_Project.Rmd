@@ -1,7 +1,7 @@
 ---
 title: "Time_Series_Covid_Project"
-author: "Reagan Meagher"
-date: "7/13/2020"
+author: "Reagan Meagher and Megan Riley"
+
 output: html_document
 ---
 
@@ -45,44 +45,107 @@ len_fl = dim(initial_data_fl)[1]
 len_us = dim(initial_data_us)[1]
 ```
 
-```{r}
-final_fl <- select(initial_data_fl, c("date", "positiveIncrease"))
-final_us <- select(initial_data_us, c("date", "positiveIncrease"))
-```
-
-plotts.sample.wge(data$V2)
+Another way to add the columns
 
 ```{r}
-plot(x = seq(1,len_fl), y = final_fl$positiveIncrease, type = "l")
-plot(x = seq(1,len_us), y = final_us$positiveIncrease, type = "l")
+
+initial_data_fl = initial_data_fl %>% mutate(positive_percentage = round((initial_data_fl$positiveIncrease / initial_data_fl$totalTestResultsIncrease) * 100, digits = 4))
+
+initial_data_us = initial_data_us %>% mutate(positive_percentage = round((initial_data_us$positiveIncrease / initial_data_us$totalTestResultsIncrease) * 100, digits = 4))
+
+len_fl = dim(initial_data_fl)[1]
+len_us = dim(initial_data_us)[1]
+
 ```
+
+Looking at percent positives.
+
+Also segmenting the percent positive trends after initial high positive rates. This allows us to model positive percentage if we make the assumption the pattern of positive percentages has changed after a first period of high percent positives.  
+
+```{r}
+
+plot(x = seq(1:len_fl), y = initial_data_fl$positive_percentage, type = "l")
+
+plot(x = seq(21:135), y = initial_data_fl[21:135,42], type = "l")
+
+
+plot(x = seq(1:len_us), y = initial_data_us$positive_percentage, type = "l")
+
+plot(x = seq(45:177), y = initial_data_us[45:177,26], type = "l")
+
+
+```
+
+
+Setting up data frames for predicting cases. 
+
+```{r}
+newcases_fl <- dplyr::select(initial_data_fl, c("date", "positiveIncrease"))
+newcases_us <- dplyr::select(initial_data_us, c("date", "positiveIncrease"))
+```
+
+Plotting the daily positive cases in Florida and US. 
+
+```{r}
+plot(x = seq(1,len_fl), y = newcases_fl$positiveIncrease, type = "l")
+plot(x = seq(1,len_us), y = newcases_us$positiveIncrease, type = "l")
+```
+
+Checking for NAs
 
 ```{r NA eval}
 #Checking for NAs
-md.pattern(final_fl)
+md.pattern(newcases_fl)
+# No NAs present
+
 #Drop NAs that are present
-final_fl <- na.omit(final_fl)
+newcases_fl <- na.omit(newcases_fl)
 
 #Checking for NAs
-md.pattern(final_us)
+md.pattern(newcases_us)
+#No NAs present
+
 #Drop NAs that are present
-final_us <- na.omit(final_us)
+newcases_us <- na.omit(newcases_us)
 ```
 
 ```{r}
-plotts.sample.wge(final_fl$positiveIncrease)
+plotts.sample.wge(newcases_fl$positiveIncrease)
 ```
+
+
+
+Building an ARIMA model on Florida Cases
 
 ```{r}
-plotts.sample.wge(final_us$positiveIncrease)
+aic5.wge(newcases_fl$positiveIncrease)
+aic5.wge(newcases_fl$positiveIncrease, type = 'bic')
+
+positiveIncrease_diff = artrans.wge(newcases_fl$positiveIncrease, 1)
+newcases_fl_diff = data.frame( date = seq(1,length(positiveIncrease_diff)), positiveIncrease_diff = positiveIncrease_diff)
+
+aic5.wge(newcases_fl_diff$positiveIncrease_diff)
+
+
+fl_arima_est = est.arma.wge(newcases_fl_diff$positiveIncrease_diff, p = 2, q = 2)
+
+
 ```
 
+Building an ARIMA model on US Cases
 ```{r}
-aic5.wge(final_fl$positiveIncrease)
-aic5.wge(final_fl$positiveIncrease, type = 'bic')
+plotts.sample.wge(newcases_us$positiveIncrease)
 
-est.arma.wge(final_fl$positiveIncrease, p = 2, q = 1)
+positiveIncrease_diff = artrans.wge(newcases_us$positiveIncrease, 1)
+newcases_us_diff = data.frame( date = seq(1,length(positiveIncrease_diff)), positiveIncrease_diff = positiveIncrease_diff)
+
+#Maxing out at 5,2 lets check the BIC and expand ps
+aic5.wge(newcases_us_diff$positiveIncrease_diff, p = 0:10, type = "bic")
+
+us_arima_est = est.arma.wge(newcases_us_diff$positiveIncrease_diff, p = 6, q = 2)
+
 ```
+
 
 
 
