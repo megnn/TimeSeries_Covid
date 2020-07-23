@@ -1,0 +1,331 @@
+---
+title: "Time_Series_Covid_Project"
+author: "Reagan Meagher"
+date: "7/13/2020"
+output: html_document
+---
+
+**Initial Set Up and Data Read In:**
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#Global Options
+remove(list = ls())
+
+#Load Packages
+library(tidyverse)
+library(dplyr)
+library(tseries)
+library(ggplot2)
+library(forecast)
+library(tswge)
+library(tseries)
+library(orcutt)
+library(mice)
+```
+
+```{r}
+initial_data_fl <- read.csv(file="https://raw.githubusercontent.com/megnn/TimeSeries_Covid/master/covidtracking_FL_data.csv", header=TRUE)
+initial_data_us <- read.csv(file="https://raw.githubusercontent.com/megnn/TimeSeries_Covid/master/covidtracking_US_data.csv", header=TRUE)
+
+initial_data_fl = initial_data_fl[order(nrow(initial_data_fl):1),]
+initial_data_us = initial_data_us[order(nrow(initial_data_us):1),]
+```
+
+```{r}
+for (i in 1:nrow(initial_data_fl)) {
+  n <- round((initial_data_fl$positiveIncrease / initial_data_fl$totalTestResultsIncrease) * 100, digits = 4)
+  initial_data_fl$positive_percentage <- n
+}
+
+for (i in 1:nrow(initial_data_us)) {
+  n <- round((initial_data_us$positiveIncrease / initial_data_us$totalTestResultsIncrease) * 100, digits = 4)
+  initial_data_us$positive_percentage <- n
+}
+
+len_fl = dim(initial_data_fl)[1]
+len_us = dim(initial_data_us)[1]
+```
+
+##**Daily Positive Cases Analysis:**
+
+Set Up Data Sources:
+```{r}
+positiveCases_fl <- select(initial_data_fl, c("date", "positiveIncrease"))
+positiveCases_us <- select(initial_data_us, c("date", "positiveIncrease"))
+
+#Checking for NAs
+md.pattern(positiveCases_fl)
+#Drop NAs that are present
+positiveCases_fl <- na.omit(positiveCases_fl)
+
+#Checking for NAs
+md.pattern(positiveCases_us)
+#Drop NAs that are present
+positiveCases_us <- na.omit(positiveCases_us)
+```
+
+###**Florida Daily Cases:**
+
+Florida Data Plot:
+```{r}
+plot(x = seq(1,len_fl), y = positiveCases_fl$positiveIncrease, type = "l", main = 'Florida Covid-19 Daily Positive Cases', xlab = 'Time (Days From Start of Pandemic)', ylab = 'Positive Daily Cases')
+```
+
+Time Series Plots and Model Type Estimation:
+```{r}
+plotts.sample.wge(positiveCases_fl$positiveIncrease)
+
+aic5.wge(positiveCases_fl$positiveIncrease)
+aic5.wge(positiveCases_fl$positiveIncrease, type = 'bic')
+```
+
+Estimate Model Phi's/Theta's For Each Model:
+```{r}
+print('Estimates for AR(1) Model:')
+AR1_pc_fl = est.ar.wge(positiveCases_fl$positiveIncrease, p = 1)
+AR1_pc_fl
+print("Estimates for ARMA(2,1) Model:")
+ARMA2_1_pc_fl = est.arma.wge(positiveCases_fl$positiveIncrease, p = 2, q = 1)
+ARMA2_1_pc_fl
+```
+
+```{r}
+print("AR(1) Two-Week Forecast")
+f_AR1_pc_fl_s = fore.arma.wge(positiveCases_fl$positiveIncrease, phi=c(AR1_pc_fl$phi),n.ahead=14,lastn=FALSE)
+print("ARMA(2,1) Two-Week Forecast")
+f_ARMA2_1_pc_fl_s = fore.arma.wge(positiveCases_fl$positiveIncrease, phi=c(ARMA2_1_pc_fl$phi),theta=c(ARMA2_1_pc_fl$theta), n.ahead=14,lastn=FALSE)
+
+print("AR(1) Two-Month Forecast")
+f_AR1_pc_fl_l = fore.arma.wge(positiveCases_fl$positiveIncrease, phi=c(AR1_pc_fl$phi),n.ahead=60,lastn=FALSE)
+print("ARMA(2,1) Two-Month Forecast")
+f_ARMA2_1_pc_fl_l = fore.arma.wge(positiveCases_fl$positiveIncrease, phi=c(ARMA2_1_pc_fl$phi),theta=c(ARMA2_1_pc_fl$theta), n.ahead=60,lastn=FALSE)
+```
+
+###**National Daily Cases:**
+
+United States Data Plot:
+```{r}
+plot(x = seq(1,len_us), y = positiveCases_us$positiveIncrease, type = "l", main = 'United States Covid-19 Daily Positive Cases', xlab = 'Time (Days From Start of Pandemic)', ylab = 'Positive Daily Cases')
+```
+
+Time Series Plots and Model Type Estimation:
+```{r}
+plotts.sample.wge(positiveCases_us$positiveIncrease)
+
+aic5.wge(positiveCases_us$positiveIncrease)
+aic5.wge(positiveCases_us$positiveIncrease, type = 'bic')
+```
+
+Estimate Model Phi's/Theta's For Each Model:
+```{r}
+print('Estimates for AR(1) Model:')
+AR1_pc_us = est.ar.wge(positiveCases_us$positiveIncrease, p = 1)
+AR1_pc_us
+print("Estimates for ARMA(1,2) Model:")
+ARMA1_2_pc_us = est.arma.wge(positiveCases_us$positiveIncrease, p = 1, q = 2)
+ARMA1_2_pc_us
+```
+
+Forecasts
+```{r}
+print("AR(1) Two-Week Forecast")
+f_AR1_pc_us_s = fore.arma.wge(positiveCases_us$positiveIncrease, phi=c(AR1_pc_us$phi),n.ahead=14,lastn=FALSE)
+print("ARMA(1,2) Two-Week Forecast")
+f_ARMA2_1_pc_us_s = fore.arma.wge(positiveCases_us$positiveIncrease, phi=c(ARMA1_2_pc_us$phi),theta=c(ARMA1_2_pc_us$theta), n.ahead=14,lastn=FALSE)
+
+print("AR(1) Two-Month Forecast")
+f_AR1_pc_us_l = fore.arma.wge(positiveCases_us$positiveIncrease, phi=c(AR1_pc_us$phi),n.ahead=60,lastn=FALSE)
+print("ARMA(1,2) Two-Month Forecast")
+f_ARMA2_1_pc_us_l = fore.arma.wge(positiveCases_us$positiveIncrease, phi=c(ARMA1_2_pc_us$phi),theta=c(ARMA1_2_pc_us$theta), n.ahead=60,lastn=FALSE)
+```
+
+##**Daily Positive Percentage Analysis:**
+
+Set Up Data Sources:
+```{r}
+positivePercentage_fl <- select(initial_data_fl, c("date", "positive_percentage"))
+positivePercentage_us <- select(initial_data_us, c("date", "positive_percentage"))
+
+#Checking for NAs
+md.pattern(positivePercentage_fl)
+#Drop NAs that are present
+positivePercentage_fl <- na.omit(positivePercentage_fl)
+
+#Checking for NAs
+md.pattern(positivePercentage_us)
+#Drop NAs that are present
+positivePercentage_us <- na.omit(positivePercentage_us)
+```
+
+###**Florida Daily Positive Percentage:**
+
+Florida Data Plot:
+```{r}
+len_fl_2 = dim(positivePercentage_fl)[1]
+plot(x = seq(1,len_fl_2), y = positivePercentage_fl$positive_percentage, type = "l", main = 'Florida Covid-19 Daily Positive Percentage', xlab = 'Time (Days From Start of Pandemic)', ylab = 'Daily Positive Percentage')
+```
+
+Time Series Plots and Model Type Estimation:
+```{r}
+plotts.sample.wge(positivePercentage_fl$positive_percentage)
+
+aic5.wge(positivePercentage_fl$positive_percentage)
+aic5.wge(positivePercentage_fl$positive_percentage, type = 'bic')
+```
+
+Estimate Model Phi's/Theta's For Each Model:
+```{r}
+print('Estimates for ARMA(3,1) Model:')
+ARMA3_1_pp_fl = est.arma.wge(positivePercentage_fl$positive_percentage, p = 3, q = 1)
+ARMA3_1_pp_fl
+print("Estimates for ARMA(3,2) Model:")
+ARMA3_2_pc_fl = est.arma.wge(positivePercentage_fl$positive_percentage, p = 3, q = 2)
+ARMA3_2_pc_fl
+```
+
+```{r}
+print("ARMA(3,1) Two-Week Forecast")
+f_ARMA3_1_pp_fl_s = fore.arma.wge(positivePercentage_fl$positive_percentage, phi=c(ARMA3_1_pp_fl$phi), theta=c(ARMA3_1_pp_fl$theta),n.ahead=14,lastn=FALSE)
+print("ARMA(2,1) Two-Week Forecast")
+f_ARMA3_2_pc_fl_s = fore.arma.wge(positivePercentage_fl$positive_percentage, phi=c(ARMA3_2_pc_fl$phi),theta=c(ARMA3_2_pc_fl$theta), n.ahead=14,lastn=FALSE)
+
+print("ARMA(3,1) Two-Month Forecast")
+f_ARMA3_1_pp_fl_l = fore.arma.wge(positivePercentage_fl$positive_percentage, phi=c(ARMA3_1_pp_fl$phi),n.ahead=60,lastn=FALSE)
+print("ARMA(2,1) Two-Month Forecast")
+f_ARMA3_2_pc_fl_l = fore.arma.wge(positivePercentage_fl$positive_percentage, phi=c(ARMA3_2_pc_fl$phi),theta=c(ARMA3_2_pc_fl$theta), n.ahead=60,lastn=FALSE)
+```
+
+###**National Daily Positive Percentage:**
+
+United States Data Plot:
+```{r}
+len_us_2 = dim(positivePercentage_us)[1]
+plot(x = seq(1,len_us_2), y = positivePercentage_us$positive_percentage, type = "l", main = 'United States Covid-19 Daily Positive Percentage', xlab = 'Time (Days From Start of Pandemic)', ylab = 'Daily Positive Percentage')
+```
+
+Time Series Plots and Model Type Estimation:
+```{r}
+plotts.sample.wge(positivePercentage_us$positive_percentage)
+
+aic5.wge(positivePercentage_us$positive_percentage)
+aic5.wge(positivePercentage_us$positive_percentage, type = 'bic')
+```
+
+Estimate Model Phi's/Theta's For Each Model:
+```{r}
+print('Estimates for ARMA(1,2) Model:')
+ARMA1_2_pp_us = est.arma.wge(positivePercentage_us$positive_percentage, p = 1, q = 2)
+ARMA1_2_pp_us
+print("Estimates for ARMA(2,2) Model:")
+ARMA2_2_pp_us = est.arma.wge(positivePercentage_us$positive_percentage, p = 2, q = 2)
+ARMA2_2_pp_us
+```
+
+Forecasts
+```{r}
+print("ARMA(1,2) Two-Week Forecast")
+f_ARMA1_2_pp_us_s = fore.arma.wge(positivePercentage_us$positive_percentage, phi=c(ARMA1_2_pp_us$phi),theta=c(ARMA1_2_pp_us$theta),n.ahead=14,lastn=FALSE)
+print("ARMA(1,2) Two-Week Forecast")
+f_ARMA2_2_pp_us_s = fore.arma.wge(positivePercentage_us$positive_percentage, phi=c(ARMA2_2_pp_us$phi),theta=c(ARMA2_2_pp_us$theta), n.ahead=14,lastn=FALSE)
+
+print("ARMA(1,2) Two-Month Forecast")
+f_ARMA1_2_pp_us_l = fore.arma.wge(positivePercentage_us$positive_percentage, phi=c(ARMA1_2_pp_us$phi),theta=c(ARMA1_2_pp_us$theta), n.ahead=60,lastn=FALSE)
+print("ARMA(2,2) Two-Month Forecast")
+f_ARMA2_2_pp_us_l = fore.arma.wge(positivePercentage_us$positive_percentage, phi=c(ARMA2_2_pp_us$phi),theta=c(ARMA2_2_pp_us$theta), n.ahead=60,lastn=FALSE)
+```
+
+##**Daily Deaths Analysis:**
+
+Set Up Data Sources:
+```{r}
+deaths_fl <- select(initial_data_fl, c("date", "deathIncrease"))
+deaths_us <- select(initial_data_us, c("date", "deathIncrease"))
+
+#Checking for NAs
+md.pattern(deaths_fl)
+#Drop NAs that are present
+deaths_fl <- na.omit(deaths_fl)
+
+#Checking for NAs
+md.pattern(deaths_us)
+#Drop NAs that are present
+deaths_us <- na.omit(deaths_us)
+```
+
+###**Florida Daily Cases:**
+
+Florida Data Plot:
+```{r}
+plot(x = seq(1,len_fl), y = deaths_fl$deathIncrease, type = "l", main = 'Florida Covid-19 Daily Deaths', xlab = 'Time (Days From Start of Pandemic)', ylab = 'Daily Deaths')
+```
+
+Time Series Plots and Model Type Estimation:
+```{r}
+plotts.sample.wge(deaths_fl$deathIncrease)
+
+aic5.wge(deaths_fl$deathIncrease)
+aic5.wge(deaths_fl$deathIncrease, type = 'bic')
+```
+
+Estimate Model Phi's/Theta's For Each Model:
+```{r}
+print('Estimates for ARMA(5,1) Model:')
+ARMA5_1_d_fl = est.arma.wge(deaths_fl$deathIncrease, p = 5, q = 1)
+ARMA5_1_d_fl
+print("Estimates for ARMA(1,1) Model:")
+ARMA1_1_d_fl = est.arma.wge(deaths_fl$deathIncrease, p = 1, q = 1)
+ARMA1_1_d_fl
+```
+
+Forecasts
+```{r}
+print("ARMA(5,1) Two-Week Forecast")
+f_ARMA5_1_d_fl_s = fore.arma.wge(deaths_fl$deathIncrease, phi=c(ARMA5_1_d_fl$phi),theta=c(ARMA5_1_d_fl$theta),n.ahead=14,lastn=FALSE)
+print("ARMA(1,1) Two-Week Forecast")
+f_ARMA1_1_d_fl_s = fore.arma.wge(deaths_fl$deathIncrease, phi=c(ARMA1_1_d_fl$phi),theta=c(ARMA1_1_d_fl$theta), n.ahead=14,lastn=FALSE)
+
+print("ARMA(5,1) Two-Month Forecast")
+f_ARMA5_1_d_fl_l = fore.arma.wge(deaths_fl$deathIncrease, phi=c(ARMA5_1_d_fl$phi),theta=c(ARMA5_1_d_fl$theta), n.ahead=60,lastn=FALSE)
+print("ARMA(1,1) Two-Month Forecast")
+f_ARMA1_1_d_fl_l = fore.arma.wge(deaths_fl$deathIncrease, phi=c(ARMA1_1_d_fl$phi),theta=c(ARMA1_1_d_fl$theta), n.ahead=60,lastn=FALSE)
+```
+
+###**National Daily Cases:**
+
+United States Data Plot:
+```{r}
+plot(x = seq(1,len_us), y = deaths_us$deathIncrease, type = "l", main = 'United States Covid-19 Daily Deaths', xlab = 'Time (Days From Start of Pandemic)', ylab = 'Daily Deaths')
+```
+
+Time Series Plots and Model Type Estimation:
+```{r}
+plotts.sample.wge(deaths_us$deathIncrease)
+
+aic5.wge(deaths_us$deathIncrease)
+aic5.wge(deaths_us$deathIncrease, type = 'bic')
+```
+
+Estimate Model Phi's/Theta's For Each Model:
+```{r}
+print('Estimates for ARMA(5,2) Model:')
+ARMA5_2_d_us = est.arma.wge(deaths_us$deathIncrease, p = 5, q = 2)
+ARMA5_2_d_us
+print("Estimates for ARMA(4,2) Model:")
+ARMA4_2_d_us = est.arma.wge(deaths_us$deathIncrease, p = 4, q = 2)
+ARMA4_2_d_us
+```
+
+Forecasts
+```{r}
+print("ARMA(5,2) Two-Week Forecast")
+f_ARMA5_2_d_us_s = fore.arma.wge(deaths_us$deathIncrease, phi=c(ARMA5_2_d_us$phi),theta=c(ARMA5_2_d_us$theta),n.ahead=14,lastn=FALSE)
+print("ARMA(4,2) Two-Week Forecast")
+f_ARMA4_2_d_us_s = fore.arma.wge(deaths_us$deathIncrease, phi=c(ARMA4_2_d_us$phi),theta=c(ARMA4_2_d_us$theta), n.ahead=14,lastn=FALSE)
+
+print("ARMA(5,2) Two-Month Forecast")
+f_ARMA5_2_d_us_l = fore.arma.wge(deaths_us$deathIncrease, phi=c(ARMA5_2_d_us$phi),theta=c(ARMA5_2_d_us$theta), n.ahead=60,lastn=FALSE)
+print("ARMA(4,2) Two-Month Forecast")
+f_ARMA4_2_d_us_l = fore.arma.wge(deaths_us$deathIncrease, phi=c(ARMA4_2_d_us$phi),theta=c(ARMA4_2_d_us$theta), n.ahead=60,lastn=FALSE)
+```
+
