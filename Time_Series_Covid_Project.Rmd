@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 #Global Options
 remove(list = ls())
+options(scipen = 999)
 
 #Load Packages
 library(tidyverse)
@@ -140,8 +141,77 @@ newcases_fl_diff = data.frame( date = seq(1,length(positiveIncrease_diff)), posi
 aic5.wge(newcases_fl_diff$positiveIncrease_diff)
 
 
-fl_arima_est = est.arma.wge(newcases_fl_diff$positiveIncrease_diff, p = 2, q = 2)
+fl_arima_212 = arima(newcases_fl$positiveIncrease, order = c(2,1,1))
+fl_arima_212$aic
 
+phis = fl_arima_212$coef[1:2]
+thetas = fl_arima_212$coef[3]
+s = 0
+d = 1
+
+trainingSize = 70
+horizon = 12
+ASEHolder = numeric()
+
+for( i in 1:(135-(trainingSize + horizon) + 1))
+{
+  
+  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = phis, theta = thetas, 
+                             s = 0, d = 1,n.ahead = horizon, plot = FALSE)
+  
+  ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
+
+
+
+```
+
+Building an AR model on FL Cases
+```{r}
+aic5.wge(newcases_fl$positiveIncrease)
+
+#Work with the less complex AR(1)
+
+fl_ar_1 = arima(newcases_fl$positiveIncrease, order = c(1,0,0))
+fl_ar_1$aic
+
+phis = fl_ar_1$coef[1]
+thetas = 0
+s = 0
+d = 0
+
+trainingSize = 70
+horizon = 12
+ASEHolder = numeric()
+
+for( i in 1:(135-(trainingSize + horizon) + 1))
+{
+  
+  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = phis,  
+                             s = 0, d = 0,n.ahead = horizon, plot = FALSE)
+  
+  ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model AR(1) for Florida Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
 
 ```
 
@@ -155,10 +225,79 @@ newcases_us_diff = data.frame( date = seq(1,length(positiveIncrease_diff)), posi
 #Maxing out at 5,2 lets check the BIC and expand ps
 aic5.wge(newcases_us_diff$positiveIncrease_diff, p = 0:10, type = "bic")
 
-us_arima_est = est.arma.wge(newcases_us_diff$positiveIncrease_diff, p = 6, q = 2)
+us_arima_est = est.arma.wge(newcases_us_diff$positiveIncrease_diff, p = 6, q = 1)
+
+us_arima_611 = arima(newcases_us$positiveIncrease, order = c(6,1,1))
+us_arima_611$aic
+
+
+
+phis = us_arima_611$coef[1:6]
+thetas = us_arima_611$coef[7]
+
+trainingSize = 70
+horizon = 12
+ASEHolder = numeric()
+
+
+for( i in 1:(177-(trainingSize + horizon) + 1))
+{
+  
+  forecasts = fore.aruma.wge(newcases_us$positiveIncrease[i:(i+(trainingSize-1))],phi = phis, theta = thetas, s = 0, d = 1,n.ahead = horizon, plot = FALSE)
+  
+  ASE = mean((newcases_us$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(6,1,1) for US Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
+
 
 ```
+Stationary US Model
 
+```{r}
+aic5.wge(newcases_us$positiveIncrease)
+
+us_arma_12 = arima(newcases_us$positiveIncrease, order = c(1,0,2))
+us_arma_12$aic
+
+est.arma.wge(newcases_us$positiveIncrease, p = 1, q = 2)
+
+
+phis = 0.9919401
+thetas = c(-0.18789321 -0.06864411)
+
+trainingSize = 70
+horizon = 12
+ASEHolder = numeric()
+
+
+for( i in 1:(135-(trainingSize + horizon) + 1))
+{
+  
+  forecasts = fore.aruma.wge(newcases_us$positiveIncrease[i:(i+(trainingSize-1))],phi = phis, theta = thetas, s = 0, d = 1,n.ahead = horizon, plot = TRUE)
+  
+  ASE = mean((newcases_us$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARMA(1,2) for US Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
+
+```
 
 Exploration of Hospitlizations. Currently Hospitalized offers a clear curve on how sever the outbreak currently is but Florida doesn't have that metric. Hospitalized Increase may be a great indicator of Covid severity but can lag behind cases in general if we assume the hospitalizaiton occurs after a positive test, important to note this is not always the case. 
 
