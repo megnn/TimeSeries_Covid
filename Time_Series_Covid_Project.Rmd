@@ -1,9 +1,11 @@
 ---
-title: "Time_Series_Covid_Project"
+title: "Time Series Covid Project"
 author: "Reagan Meagher and Megan Riley"
 
 output: html_document
 ---
+
+[site]: https://covidtracking.com/ "The Covid Tracking Project"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -21,7 +23,20 @@ library(tswge)
 library(tseries)
 library(orcutt)
 library(mice)
+library(nnfor)
 ```
+
+#*Modeling Covid19 Time Series* 
+
+
+Covid19 is a worldwide pandemic that will likely define 2020. In the United States, currently over four million people have been infected and over 150,000 have died as a result of Covid19. As the pandemic continues, limiting infections, serious harm, and death is a primary concern for all involved. 
+
+As this is a novel illness, we know relatively little, but understanding how Covid19 is spreading and judging the severity of an outbreak can be approximated with the data we have available. In this report we aim to build effective time series models to forecast future Covid19 cases using the techniques we have learned from this Time Series course. 
+##*Goal One:  Data Collection *
+
+The data source we are using is sourced from [The Covid Tracking Project][site]. 
+
+
 
 ```{r}
 initial_data_fl <- read.csv(file="https://raw.githubusercontent.com/megnn/TimeSeries_Covid/master/covidtracking_FL_data.csv", header=TRUE)
@@ -29,7 +44,27 @@ initial_data_us <- read.csv(file="https://raw.githubusercontent.com/megnn/TimeSe
 
 initial_data_fl = initial_data_fl[order(nrow(initial_data_fl):1),]
 initial_data_us = initial_data_us[order(nrow(initial_data_us):1),]
+
+len_fl = dim(initial_data_fl)[1]
+len_us = dim(initial_data_us)[1]
+
 ```
+
+Insert exploration of cases, deaths, hospitalizations etc. 
+
+Plotting the daily positive cases in Florida and US. 
+
+```{r}
+plot(x = seq(1,len_fl), y = initial_data_fl$positiveIncrease, type = "l")
+plot(x = seq(1,len_us), y = initial_data_us$positiveIncrease, type = "l")
+```
+
+##*Positive Percentage*
+
+Positive Percentage is a statistic that calculates daily positive tests as a percentage of daily overall tests returned. We calculated this column and added it to our data below followed by some visual exploration of the statistic itself. 
+
+Overall we see a clear instance of high and often 100% positive test rates early on in the first days and weeks of the pandemic spread. We understand this as a result of the fact that Covid19 spread fast and we had more community spread than anticipated early on without the testing available. It is abundantly clear that when we have extremely high percent positive rates near 100% we can expect true positive case numbers at the time to be under represented. But without better epidemlogical understanding we can't make judgement calls on true case numbers when percent positives rise from 5% to 10% as we see begin to happen somewhat in recent days in Florida. 
+
 
 ```{r}
 for (i in 1:nrow(initial_data_fl)) {
@@ -42,29 +77,8 @@ for (i in 1:nrow(initial_data_us)) {
   initial_data_us$positive_percentage <- n
 }
 
-len_fl = dim(initial_data_fl)[1]
-len_us = dim(initial_data_us)[1]
-```
 
-Another way to add the columns
-
-```{r}
-
-initial_data_fl = initial_data_fl %>% mutate(positive_percentage = round((initial_data_fl$positiveIncrease / initial_data_fl$totalTestResultsIncrease) * 100, digits = 4))
-
-initial_data_us = initial_data_us %>% mutate(positive_percentage = round((initial_data_us$positiveIncrease / initial_data_us$totalTestResultsIncrease) * 100, digits = 4))
-
-len_fl = dim(initial_data_fl)[1]
-len_us = dim(initial_data_us)[1]
-
-```
-
-Looking at percent positives.
-
-Also segmenting the percent positive trends after initial high positive rates. This allows us to model positive percentage if we make the assumption the pattern of positive percentages has changed after a first period of high percent positives.  
-
-```{r}
-
+#Percent Positive Exploration
 plot(x = seq(1:len_fl), y = initial_data_fl$positive_percentage, type = "l")
 
 plot(x = seq(21:135), y = initial_data_fl[21:135,42], type = "l")
@@ -77,11 +91,13 @@ plot(x = seq(45:177), y = initial_data_us[45:177,26], type = "l")
 
 ```
 
-The case agains positive percentages. Positive Percentage as a metric is a measure of two main things, how many tests are we administering and how many positives are we receiving. If tests are skyrocketing while positives are increasing, we would see a stable line which could indicate not a pandemic under control but simply better testing resources. 
+
+
+Positive Percentage as a metric is a measure of two main things, how many tests are we administering and how many positives are we receiving. If tests are skyrocketing while positive cases are increasing, we would see a stable or even diminishing line which could indicate not a pandemic under control but simply better testing resources but could be interpreted as a pandemic managed. 
 
 Keeping tests increasing to continue to keep percent positives level is a good indication we have leveled up our resources to continue to diagnose the pandemic at the same level, but if we need to scale up our testing to keep the same positive percentage, there is more covid spread. 
 
-An increasing positive percentage is a good indicator that our testing resources may not be up to actually up to tracking the current stage of the pandemic. 
+However, an increasing positive percentage is a good indicator that our testing resources may not be up to actually up to tracking the current stage of the pandemic. 
 
 
 ```{r}
@@ -90,64 +106,64 @@ plot(x = seq(1:len_fl), y = initial_data_fl$totalTestResultsIncrease, type = "l"
 
 ```
 
+####Data Preperation
 
-Setting up data frames for predicting cases. 
+In order to model new case numbers by day we set up dataframes with only our date and positive increase amount per day.
 
 ```{r}
 newcases_fl <- dplyr::select(initial_data_fl, c("date", "positiveIncrease"))
 newcases_us <- dplyr::select(initial_data_us, c("date", "positiveIncrease"))
 ```
 
-Plotting the daily positive cases in Florida and US. 
 
-```{r}
-plot(x = seq(1,len_fl), y = newcases_fl$positiveIncrease, type = "l")
-plot(x = seq(1,len_us), y = newcases_us$positiveIncrease, type = "l")
-```
 
-Checking for NAs
+####Checking for NAs
+
+We can see with the missing value analysis below that we have no NAs present in our new case data. 
 
 ```{r NA eval}
 #Checking for NAs
 md.pattern(newcases_fl)
 # No NAs present
 
-#Drop NAs that are present
-newcases_fl <- na.omit(newcases_fl)
 
 #Checking for NAs
 md.pattern(newcases_us)
 #No NAs present
 
-#Drop NAs that are present
-newcases_us <- na.omit(newcases_us)
 ```
 
+
+(Does this really need to be in the univariate section? If so should we drop our lesser models? )
+###**Florida Daily Cases:**
+
+As we can see below, the daily new positive cases in Florida is in recent days spiking. We also have the ACFs and Spectral Density plots laid out. In the ACFs we see a clear pattern of slowly dampening frequencies, indicative of non stationarity. And within the spectral density plot we see a peak at zero which could indicate stationary wandering or an aperiodic trend. Given our data shows a strong upward trend in recent days, the evidence at hand strongly points to the new positive cases behaving in a non stationary way.  
+
 ```{r}
+
 plotts.sample.wge(newcases_fl$positiveIncrease)
+
 ```
 
 
 
-Building an ARIMA model on Florida Cases
+###Florida Cases - Baseline Model One
+
+To model Florida cases we start with a base model. We can see that the most favored model by BIC is an AR(1). So we begin by building that model. Our AR(1) has a phi of .975, quite close to the unit circle, which we expect to model strongly wandering behavior. 
+
+This model has an AIC estimate of 14.01. 
+
+In order to estimate an average ASE, we are running this model over segments of our data with 54 iterations. In each case training with at least seventy data points and predicting on twelve. Overall this produces an average ASE of 6,353,070. 
+
+Below our ASE estimates we forecast short term and long term forecasts and both follow AR(1) behavior of data dampening towards our mean. 
 
 ```{r}
-aic5.wge(newcases_fl$positiveIncrease)
 aic5.wge(newcases_fl$positiveIncrease, type = 'bic')
 
-positiveIncrease_diff = artrans.wge(newcases_fl$positiveIncrease, 1)
-newcases_fl_diff = data.frame( date = seq(1,length(positiveIncrease_diff)), positiveIncrease_diff = positiveIncrease_diff)
 
-aic5.wge(newcases_fl_diff$positiveIncrease_diff)
+fl_ar_1 = est.ar.wge(newcases_fl$positiveIncrease, p = 1)
 
-
-fl_arima_212 = arima(newcases_fl$positiveIncrease, order = c(2,1,1))
-fl_arima_212$aic
-
-phis = fl_arima_212$coef[1:2]
-thetas = fl_arima_212$coef[3]
-s = 0
-d = 1
+fl_ar_1$aic
 
 trainingSize = 70
 horizon = 12
@@ -156,8 +172,7 @@ ASEHolder = numeric()
 for( i in 1:(135-(trainingSize + horizon) + 1))
 {
   
-  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = phis, theta = thetas, 
-                             s = 0, d = 1,n.ahead = horizon, plot = FALSE)
+  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_ar_1$phi, n.ahead = horizon, plot = FALSE)
   
   ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
   ASEHolder[i] = ASE
@@ -173,22 +188,33 @@ WindowedASE = mean(ASEHolder)
 WindowedASE
 
 
+short_fl_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_ar_1$phi, n.ahead = 7, plot = TRUE)
+
+long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_ar_1$phi, n.ahead = 90, plot = TRUE)
+
+
 
 ```
 
-Building an AR model on FL Cases
+###Florida Cases - Baseline Model Two
+
+To model Florida cases we start with a base model. We can see that the most favored model by BIC is an AR(1). So we begin by building that model. Our AR(1) has a phi of .975, quite close to the unit circle, which we expect to model strongly wandering behavior. 
+
+This model has an AIC estimate of 14.01. 
+
+In order to estimate an average ASE, we are running this model over segments of our data with 54 iterations. In each case training with at least seventy data points and predicting on twelve. Overall this produces an average ASE of 6,353,070. 
+
+Below our ASE estimates we forecast short term and long term forecasts and both follow AR(1) behavior of data dampening towards our mean. 
+
+
 ```{r}
 aic5.wge(newcases_fl$positiveIncrease)
+aic5.wge(newcases_fl$positiveIncrease, type = 'bic')
 
-#Work with the less complex AR(1)
 
-fl_ar_1 = arima(newcases_fl$positiveIncrease, order = c(1,0,0))
-fl_ar_1$aic
-
-phis = fl_ar_1$coef[1]
-thetas = 0
-s = 0
-d = 0
+fl_arma_21 = est.arma.wge(newcases_fl$positiveIncrease, p = 2, q = 1)
+fl_arma_21
+fl_arma_21$aic
 
 trainingSize = 70
 horizon = 12
@@ -197,8 +223,7 @@ ASEHolder = numeric()
 for( i in 1:(135-(trainingSize + horizon) + 1))
 {
   
-  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = phis,  
-                             s = 0, d = 0,n.ahead = horizon, plot = FALSE)
+  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_arma_21$phi, theta = fl_arma_21$theta, n.ahead = horizon, plot = FALSE)
   
   ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
   ASEHolder[i] = ASE
@@ -207,43 +232,54 @@ for( i in 1:(135-(trainingSize + horizon) + 1))
 
 ASEHolder
 #Distribution of ASEs on Two Week Periods
-hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model AR(1) for Florida Data")
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
 
 #Mean ASE 
 WindowedASE = mean(ASEHolder)
 WindowedASE
 
+
+short_fl_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 7, plot = TRUE)
+
+long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 90, plot = TRUE)
+
+
+
 ```
 
-Building an ARIMA model on US Cases
+
+
+###**US Daily Cases:**
+
+
+
 ```{r}
 plotts.sample.wge(newcases_us$positiveIncrease)
 
-positiveIncrease_diff = artrans.wge(newcases_us$positiveIncrease, 1)
-newcases_us_diff = data.frame( date = seq(1,length(positiveIncrease_diff)), positiveIncrease_diff = positiveIncrease_diff)
-
-#Maxing out at 5,2 lets check the BIC and expand ps
-aic5.wge(newcases_us_diff$positiveIncrease_diff, p = 0:10, type = "bic")
-
-us_arima_est = est.arma.wge(newcases_us_diff$positiveIncrease_diff, p = 6, q = 1)
-
-us_arima_611 = arima(newcases_us$positiveIncrease, order = c(6,1,1))
-us_arima_611$aic
+plot(x = seq(1,len_us), y = newcases_us$positiveIncrease, type = "l", main = 'United States Covid-19 Daily Positive Cases', xlab = 'Time (Days From Start of Pandemic)', ylab = 'Positive Daily Cases')
+ 
+```
 
 
+###US Model One - AR 1 
 
-phis = us_arima_611$coef[1:6]
-thetas = us_arima_611$coef[7]
+```{r}
+aic5.wge(newcases_us$positiveIncrease)
+aic5.wge(newcases_us$positiveIncrease, type = 'bic')
+
+
+us_ar_1 = est.ar.wge(newcases_us$positiveIncrease, p = 1)
+us_ar_1
+us_ar_1$aic
 
 trainingSize = 70
 horizon = 12
 ASEHolder = numeric()
-
 
 for( i in 1:(177-(trainingSize + horizon) + 1))
 {
   
-  forecasts = fore.aruma.wge(newcases_us$positiveIncrease[i:(i+(trainingSize-1))],phi = phis, theta = thetas, s = 0, d = 1,n.ahead = horizon, plot = FALSE)
+  forecasts = fore.aruma.wge(newcases_us$positiveIncrease[i:(i+(trainingSize-1))],phi = us_ar_1$phi, n.ahead = horizon, plot = FALSE)
   
   ASE = mean((newcases_us$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
   ASEHolder[i] = ASE
@@ -252,37 +288,41 @@ for( i in 1:(177-(trainingSize + horizon) + 1))
 
 ASEHolder
 #Distribution of ASEs on Two Week Periods
-hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(6,1,1) for US Data")
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
 
 #Mean ASE 
 WindowedASE = mean(ASEHolder)
 WindowedASE
 
 
+short_fl_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_ar_1$phi, n.ahead = 7, plot = TRUE)
+
+long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_ar_1$phi, n.ahead = 90, plot = TRUE)
+
+
+
 ```
-Stationary US Model
+
+
+US PArt 2 - ARMA 1 2
 
 ```{r}
-aic5.wge(newcases_us$positiveIncrease)
+aic5.wge(newcases_fl$positiveIncrease)
+aic5.wge(newcases_fl$positiveIncrease, type = 'bic')
 
-us_arma_12 = arima(newcases_us$positiveIncrease, order = c(1,0,2))
+
+us_arma_12 = est.arma.wge(newcases_us$positiveIncrease, p = 1, q = 2)
+us_arma_12
 us_arma_12$aic
-
-est.arma.wge(newcases_us$positiveIncrease, p = 1, q = 2)
-
-
-phis = 0.9919401
-thetas = c(-0.18789321 -0.06864411)
 
 trainingSize = 70
 horizon = 12
 ASEHolder = numeric()
 
-
-for( i in 1:(135-(trainingSize + horizon) + 1))
+for( i in 1:(177-(trainingSize + horizon) + 1))
 {
   
-  forecasts = fore.aruma.wge(newcases_us$positiveIncrease[i:(i+(trainingSize-1))],phi = phis, theta = thetas, s = 0, d = 1,n.ahead = horizon, plot = TRUE)
+  forecasts = fore.aruma.wge(newcases_us$positiveIncrease[i:(i+(trainingSize-1))],phi = us_arma_12$phi, theta = us_arma_12$theta, n.ahead = horizon, plot = FALSE)
   
   ASE = mean((newcases_us$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
   ASEHolder[i] = ASE
@@ -291,29 +331,29 @@ for( i in 1:(135-(trainingSize + horizon) + 1))
 
 ASEHolder
 #Distribution of ASEs on Two Week Periods
-hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARMA(1,2) for US Data")
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
 
 #Mean ASE 
 WindowedASE = mean(ASEHolder)
 WindowedASE
 
+
+short_fl_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_arma_12$phi,theta = us_arma_12$theta, n.ahead = 7, plot = TRUE)
+
+long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_arma_12$phi,theta = us_arma_12$theta, n.ahead = 90, plot = TRUE)
+
+
+
 ```
 
-Exploration of Hospitlizations. Currently Hospitalized offers a clear curve on how sever the outbreak currently is but Florida doesn't have that metric. Hospitalized Increase may be a great indicator of Covid severity but can lag behind cases in general if we assume the hospitalizaiton occurs after a positive test, important to note this is not always the case. 
+
+##*Goal Two: Univariate Analysis*
 
 ```{r}
-plot(x = seq(1:len_us), y = initial_data_us$hospitalizedIncrease, type = "l")
-
-plot(x = seq(1:len_us), y = initial_data_us$hospitalizedCurrently, type = "l")
-
-
-plot(x = seq(1:len_fl), y = initial_data_fl$hospitalizedIncrease, type = "l")
-#Newly updated not a great # to use for fl, good for us as whole
-plot(x = seq(1:len_fl), y = initial_data_fl$hospitalizedCurrently, type = "l")
-
-
-
 
 ```
 
+
+
+##*Goal Three: Multivariate Analysis*
 
