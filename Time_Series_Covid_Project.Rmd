@@ -147,105 +147,9 @@ plotts.sample.wge(newcases_fl$positiveIncrease)
 
 
 
-###Florida Cases - Baseline Model One
-
-To model Florida cases we start with a base model. We can see that the most favored model by BIC is an AR(1). So we begin by building that model. Our AR(1) has a phi of .975, quite close to the unit circle, which we expect to model strongly wandering behavior. 
-
-This model has an AIC estimate of 14.01. 
-
-In order to estimate an average ASE, we are running this model over segments of our data with 54 iterations. In each case training with at least seventy data points and predicting on twelve. Overall this produces an average ASE of 6,353,070. 
-
-Below our ASE estimates we forecast short term and long term forecasts and both follow AR(1) behavior of data dampening towards our mean. 
-
-```{r}
-aic5.wge(newcases_fl$positiveIncrease, type = 'bic')
-
-
-fl_ar_1 = est.ar.wge(newcases_fl$positiveIncrease, p = 1)
-
-fl_ar_1$aic
-
-trainingSize = 70
-horizon = 12
-ASEHolder = numeric()
-
-for( i in 1:(135-(trainingSize + horizon) + 1))
-{
-  
-  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_ar_1$phi, n.ahead = horizon, plot = FALSE)
-  
-  ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
-  ASEHolder[i] = ASE
-  
-}
-
-ASEHolder
-#Distribution of ASEs on Two Week Periods
-hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
-
-#Mean ASE 
-WindowedASE = mean(ASEHolder)
-WindowedASE
-
-
-short_fl_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_ar_1$phi, n.ahead = 7, plot = TRUE)
-
-long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_ar_1$phi, n.ahead = 90, plot = TRUE)
 
 
 
-```
-
-###Florida Cases - Baseline Model Two
-
-To model Florida cases we start with a base model. We can see that the most favored model by BIC is an AR(1). So we begin by building that model. Our AR(1) has a phi of .975, quite close to the unit circle, which we expect to model strongly wandering behavior. 
-
-This model has an AIC estimate of 14.01. 
-
-In order to estimate an average ASE, we are running this model over segments of our data with 54 iterations. In each case training with at least seventy data points and predicting on twelve. Overall this produces an average ASE of 6,353,070. 
-
-Below our ASE estimates we forecast short term and long term forecasts and both follow AR(1) behavior of data dampening towards our mean. 
-
-
-```{r}
-aic5.wge(newcases_fl$positiveIncrease)
-aic5.wge(newcases_fl$positiveIncrease, type = 'bic')
-
-
-fl_arma_21 = est.arma.wge(newcases_fl$positiveIncrease, p = 2, q = 1)
-fl_arma_21
-fl_arma_21$aic
-
-trainingSize = 70
-horizon = 12
-ASEHolder = numeric()
-
-for( i in 1:(135-(trainingSize + horizon) + 1))
-{
-  
-  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_arma_21$phi, theta = fl_arma_21$theta, n.ahead = horizon, plot = FALSE)
-  
-  ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
-  ASEHolder[i] = ASE
-  
-}
-
-ASEHolder
-#Distribution of ASEs on Two Week Periods
-hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
-
-#Mean ASE 
-WindowedASE = mean(ASEHolder)
-WindowedASE
-
-
-short_fl_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 7, plot = TRUE)
-
-long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 90, plot = TRUE)
-
-
-
-```
 
 
 
@@ -304,6 +208,158 @@ long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_ar_1$phi, n.a
 ```
 
 
+
+
+
+##*Goal Two: Univariate Analysis*
+
+FLORIDA CASE Univariate ANALYSIS
+
+Stationarity vs non-stationarity - concerns about the data
+
+```{r}
+
+```
+
+
+Model IDing of stationary modls
+
+```{r}
+
+```
+
+
+Model Building 
+
+
+
+###Florida Cases - ARMA(2,1) Model
+
+To model Florida cases we start with a base model. We can see that the most favored model by BIC is an AR(1). So we begin by building that model. Our AR(1) has a phi of .975, quite close to the unit circle, which we expect to model strongly wandering behavior. 
+
+This model has an AIC estimate of 14.01. 
+
+In order to estimate an average ASE, we are running this model over segments of our data with 54 iterations. In each case training with at least seventy data points and predicting on twelve. Overall this produces an average ASE of 6,353,070. 
+
+Below our ASE estimates we forecast short term and long term forecasts and both follow AR(1) behavior of data dampening towards our mean. 
+
+
+```{r}
+aic5.wge(newcases_fl$positiveIncrease)
+aic5.wge(newcases_fl$positiveIncrease, type = 'bic')
+
+
+fl_arma_21 = est.arma.wge(newcases_fl$positiveIncrease, p = 2, q = 1)
+fl_arma_21
+fl_arma_21$aic
+
+trainingSize = 70
+horizon = 12
+ASEHolder = numeric()
+
+for( i in 1:(135-(trainingSize + horizon) + 1))
+{
+  
+  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_arma_21$phi, theta = fl_arma_21$theta, n.ahead = horizon, plot = FALSE)
+  
+  ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
+
+
+short_fl_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 7, plot = TRUE)
+
+long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 90, plot = TRUE)
+
+
+
+```
+
+MLP/RNN
+
+MLP for Florida
+
+```{r}
+
+mlp.fit = mlp(ts(newcases_fl$positiveIncrease),hd=10)
+mlp.fit
+plot(mlp.fit)
+
+trainingSize = 70
+horizon = 12
+ASEHolder = numeric()
+
+
+for( i in 1:(135-(trainingSize + horizon) + 1))
+{
+  mlp.fit = mlp(ts(newcases_fl$positiveIncrease[1:trainingSize]), hd = 5, comb = "median")
+  forecasts = forecast(mlp.fit,h = horizon)
+  
+  ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] -forecasts$mean)^2)
+  print(c(i,ASE, "from",trainingSize+i,"to",(trainingSize+ i + (horizon) - 1)))
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for MLP Model Florida Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
+
+plot(forecasts)
+
+
+```
+
+```{r}
+
+mlp.fit = mlp(ts(newcases_fl$positiveIncrease[54:123]), hd = 5)
+forecasts = forecast(mlp.fit,h = 12)
+  
+ASE = mean((newcases_fl$positiveIncrease[124:135] -forecasts$mean)^2)
+print(ASE)
+
+```
+
+
+Ensemble
+```{r}
+
+```
+
+
+
+Comparing and Assessing Models
+
+```{r}
+
+```
+
+Model Building for Cases United States
+
+
+Stationarity vs non-stationarity - concerns about the data
+
+```{r}
+
+```
+
+
+Model IDing of stationary modls
+
+
 US PArt 2 - ARMA 1 2
 
 ```{r}
@@ -346,14 +402,83 @@ long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_arma_12$phi,t
 
 ```
 
+MLP/RNN
 
-##*Goal Two: Univariate Analysis*
+```{r}
 
+mlp.fit = mlp(ts(newcases_fl$positiveIncrease[54:123]), hd = 5)
+forecasts = forecast(mlp.fit,h = 12)
+  
+ASE = mean((newcases_fl$positiveIncrease[124:135] -forecasts$mean)^2)
+print(ASE)
+
+```
+
+
+Ensemble
 ```{r}
 
 ```
 
 
 
+
+Model Building 
+
 ##*Goal Three: Multivariate Analysis*
+
+```{r}
+
+
+```
+Florida Models
+
+VAR/MLR with Correlated Errors Model  
+
+```{r}
+
+```
+
+
+MLP/RNN Model
+```{r}
+
+```
+
+
+Ensemble
+
+```{r}
+
+
+```
+
+Compare Multivariate Models
+
+```{r}
+
+
+```
+
+US Models
+
+VAR/MLR with Correlated Errors Model  
+
+```{r}
+
+```
+
+
+MLP/RNN Model
+```{r}
+
+```
+
+
+Ensemble
+
+```{r}
+
+
+```
 

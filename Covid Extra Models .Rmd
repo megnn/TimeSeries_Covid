@@ -1,0 +1,54 @@
+---
+title: "Covid Trash Models"
+output: html_notebook
+---
+
+Models we are throwing away
+###Florida Cases - Baseline Model One
+
+To model Florida cases we start with a base model. We can see that the most favored model by BIC is an AR(1). So we begin by building that model. Our AR(1) has a phi of .975, quite close to the unit circle, which we expect to model strongly wandering behavior. 
+
+This model has an AIC estimate of 14.01. 
+
+In order to estimate an average ASE, we are running this model over segments of our data with 54 iterations. In each case training with at least seventy data points and predicting on twelve. Overall this produces an average ASE of 6,353,070. 
+
+Below our ASE estimates we forecast short term and long term forecasts and both follow AR(1) behavior of data dampening towards our mean. 
+
+```{r}
+aic5.wge(newcases_fl$positiveIncrease, type = 'bic')
+
+
+fl_ar_1 = est.ar.wge(newcases_fl$positiveIncrease, p = 1)
+
+fl_ar_1$aic
+
+trainingSize = 70
+horizon = 12
+ASEHolder = numeric()
+
+for( i in 1:(135-(trainingSize + horizon) + 1))
+{
+  
+  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_ar_1$phi, n.ahead = horizon, plot = FALSE)
+  
+  ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
+
+
+short_fl_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_ar_1$phi, n.ahead = 7, plot = TRUE)
+
+long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_ar_1$phi, n.ahead = 90, plot = TRUE)
+
+
+
+```
