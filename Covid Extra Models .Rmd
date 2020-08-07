@@ -52,3 +52,122 @@ long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = fl_ar_1$phi, n.a
 
 
 ```
+
+
+###US Model One - AR 1 
+
+```{r}
+aic5.wge(newcases_us$positiveIncrease)
+aic5.wge(newcases_us$positiveIncrease, type = 'bic')
+
+
+us_ar_1 = est.ar.wge(newcases_us$positiveIncrease, p = 1)
+us_ar_1
+us_ar_1$aic
+
+trainingSize = 70
+horizon = 12
+ASEHolder = numeric()
+
+for( i in 1:(177-(trainingSize + horizon) + 1))
+{
+  
+  forecasts = fore.aruma.wge(newcases_us$positiveIncrease[i:(i+(trainingSize-1))],phi = us_ar_1$phi, n.ahead = horizon, plot = FALSE)
+  
+  ASE = mean((newcases_us$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
+
+
+short_fl_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_ar_1$phi, n.ahead = 7, plot = TRUE)
+
+long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_ar_1$phi, n.ahead = 90, plot = TRUE)
+
+
+
+```
+
+
+####Florida ARIMA Model
+
+```{r}
+
+diff_fl_cases_1 = artrans.wge(newcases_fl$positiveIncrease, 1)
+diff_fl_cases_2 = artrans.wge(diff_fl_cases_1, 1)
+
+diff_fl_cases_2_7 = artrans.wge(diff_fl_cases_2, c(rep(0,6),1))
+
+aic5.wge(diff_fl_cases_2_7)
+
+est.arma.wge(diff_fl_cases_2_7)
+
+
+model_arima = arima(newcases_fl$positiveIncrease, order = c(2,2,0), seasonal = list(order = c(7,0,0)))
+model_arima
+
+
+
+trainingSize = 70
+horizon = 12
+ASEHolder = numeric()
+
+for( i in 1:(135-(trainingSize + horizon) + 1))
+{
+  
+  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = model_arima$coef[1:2], s = 7, d = 2, n.ahead = horizon, plot = FALSE)
+  
+  ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
+#25257410
+
+short_fl_ar1 = fore.aruma.wge(newcases_fl$positiveIncrease,phi = model_arima$coef[1:2], s = 7, d = 2, n.ahead = 7, plot = TRUE)
+
+long_fl_ar1 = fore.aruma.wge(newcases_fl$positiveIncrease,phi = model_arima$coef[1:2], s = 7, d = 2,  n.ahead = 90, plot = TRUE)
+
+
+
+```
+
+
+VAR/MLR with Correlated Errors Model  
+
+
+```{r}
+library(vars)
+VARselect(newcases_fl_multi,lag.max = 10, type = "both")
+#AIC of 25.76087
+
+cases_fl_VAR = VAR(newcases_fl_multi,type = "trend",p = 4)
+preds=predict(cases_fl_VAR,n.ahead=12)
+plot(preds)
+
+
+
+ASE = mean((newcases_fl_multi$positiveIncrease[123:135] - preds$fcst$positiveIncrease)^2)
+ASE 
+#35935880
+
+
+
+```
+
+
