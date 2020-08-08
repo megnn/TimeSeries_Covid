@@ -1,8 +1,9 @@
 ---
 title: "Time Series Covid Project"
 author: "Reagan Meagher and Megan Riley"
-
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 [site]: https://covidtracking.com/ "The Covid Tracking Project"
@@ -79,14 +80,12 @@ for (i in 1:nrow(initial_data_us)) {
 
 
 #Percent Positive Exploration
-plot(x = seq(1:len_fl), y = initial_data_fl$positive_percentage, type = "l")
-
-plot(x = seq(21:135), y = initial_data_fl[21:135,42], type = "l")
+plot(x = seq(1:len_fl), y = initial_data_fl$positive_percentage, type = "l", main = "Florida Positive Percentage over time", ylab = "Positive Percentage", xlab = "Time")
 
 
-plot(x = seq(1:len_us), y = initial_data_us$positive_percentage, type = "l")
 
-plot(x = seq(45:177), y = initial_data_us[45:177,26], type = "l")
+plot(x = seq(1:len_us), y = initial_data_us$positive_percentage, type = "l", main = "US Positive Percentage over time", ylab = "Positive Percentage", xlab = "Time")
+
 
 
 ```
@@ -237,9 +236,9 @@ WindowedASE
 
 
 
-short_fl_ar1 = fore.aruma.wge(newcases_fl$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 7, plot = TRUE)
+short_fl_arma = fore.aruma.wge(newcases_fl$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 7, plot = TRUE)
 
-long_fl_ar1 = fore.aruma.wge(newcases_fl$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 90, plot = TRUE)
+long_fl_arma = fore.aruma.wge(newcases_fl$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 90, plot = TRUE)
 
 final_pred = fore.aruma.wge(newcases_fl$positiveIncrease[1:123],phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 12, plot = TRUE)
 final_pred_df = data.frame(t = seq(124:135), final_pred$f)
@@ -298,6 +297,22 @@ plot(newcases_fl$positiveIncrease, type = "l", ylab = "New Daily Cases", xlab = 
 lines(all_f, col = "blue")
 
 
+#Future Forecasts
+
+mlp.fit_fl_future =mlp(ts(newcases_fl$positiveIncrease), hd = 5, comb = "median")
+short_fl_mlp = forecast(mlp.fit_fl_future,h = 7)
+
+long_fl_mlp = forecast(mlp.fit_fl_future,h = 90)
+
+plot(newcases_fl$positiveIncrease, type = "l", xlim = c(1,145), main = "Florida Short Term MLP Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(short_fl_mlp$mean, col = "blue")
+
+plot(newcases_fl$positiveIncrease, type = "l", xlim = c(1,235), ylim = c(0,23000), main = "Florida Long Term MLP Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(long_fl_mlp$mean, col = "blue")
+
+
+
+
 ```
 
 ```{r}
@@ -327,6 +342,21 @@ ensemble_ASE
 
 plot(newcases_fl$positiveIncrease, type = "l", ylab = "Count of New Cases", xlab = "Time", main = "Florida Ensemble Model Final 12 Predictions")
 lines(ensemble_fl_fore, col = "blue")
+
+
+#future forecasting
+ 
+short_fl_ensemble = (short_fl_mlp$mean + short_fl_arma$f)/2
+long_fl_ensemble = (long_fl_mlp$mean + long_fl_arma$f)/2
+
+
+
+plot(newcases_fl$positiveIncrease, type = "l", xlim = c(1,145), main = "Florida Short Term Ensemble Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(short_fl_ensemble, col = "blue")
+
+plot(newcases_fl$positiveIncrease, type = "l", xlim = c(1,235), ylim = c(0,23000), main = "Florida Long Term Ensemble Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(long_fl_ensemble, col = "blue")
+
 
 
 ```
@@ -461,15 +491,29 @@ all_f = c(forecasts_us_mlp$fitted, forecasts$mean)
 plot(newcases_us$positiveIncrease, type = "l")
 lines(all_f, col = "blue")
 
+#Future Predictions
+
+mlp.fit_us_future =mlp(ts(newcases_us$positiveIncrease), hd = 5, comb = "median")
+short_us_mlp = forecast(mlp.fit_us_future,h = 7)
+
+long_us_mlp = forecast(mlp.fit_us_future,h = 90)
+
+plot(newcases_us$positiveIncrease, type = "l", xlim = c(1,187), main = "United States Short Term MLP Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(short_us_mlp$mean, col = "blue")
+
+plot(newcases_us$positiveIncrease, type = "l", xlim = c(1,277), main = "United States Long Term MLP Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(long_us_mlp$mean, col = "blue")
+
+
 
 ```
 
 
-Ensemble
+####US Ensemble
 ```{r}
 #ASE fits for ensemble
-mlp.fit_us_final = mlp(ts(newcases_us$positiveIncrease[1:165]), hd = 5, comb = "median")
-forecasts_us_mlp = forecast(mlp.fit_us_final,h = 12)
+#mlp.fit_us_final = mlp(ts(newcases_us$positiveIncrease[1:165]), hd = 5, comb = "median")
+#forecasts_us_mlp = forecast(mlp.fit_us_final,h = 12)
 
 
 forecasts_arma_us = fore.aruma.wge(newcases_us$positiveIncrease[1:165],phi = us_arma_12$phi,theta = us_arma_12$theta, n.ahead = 12, plot = TRUE)
@@ -482,6 +526,21 @@ ensemble_ASE
 
 plot(newcases_us$positiveIncrease, type = "l", ylab = "Count of New Cases", xlab = "Time")
 lines(ensemble_fore, col = "blue")
+
+#Forecasting ahead
+short_ensemble_us = (short_us_mlp$mean +short_us_ar1$f)/2
+
+long_ensemble_us = (long_us_mlp$mean +long_us_ar1$f)/2
+
+
+plot(newcases_us$positiveIncrease, type = "l", xlim = c(1,187), main = "United States Short Term Ensemble Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(short_ensemble_us, col = "blue")
+
+plot(newcases_us$positiveIncrease, type = "l", xlim = c(1,277), main = "United States Long Term Ensemble Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(long_ensemble_us, col = "blue")
+
+
+
 
 ```
 
@@ -527,6 +586,7 @@ newvar_fore_fl = data.frame(totalTestResultsIncrease = ts(c(newcases_fl_multi$to
 dim(newvar_fore_fl)
 
 
+
 ```
 
 ###Multivariate Model Building for Florida Cases
@@ -559,6 +619,32 @@ lines(ts(FinalPredictions_fl_MLR, start = 124), col = "blue")
 ASE = mean((newcases_fl_multi$positiveIncrease[124:135] - FinalPredictions_fl_MLR)^2)
 ASE
 #7223923
+
+
+#Forecasting Ahead
+
+shortdata = data.frame(totalTestResultsIncrease = rep(est_tests,7), hospitalizedIncrease = rep(est_hospital,7))
+longdata =data.frame(totalTestResultsIncrease = rep(est_tests,90), hospitalizedIncrease = rep(est_hospital,90))
+
+
+fit = lm(positiveIncrease~totalTestResultsIncrease + hospitalizedIncrease, data = newcases_fl_multi)
+#short
+preds = predict(fit, newdata = shortdata)
+forecasts = fore.arma.wge(fit$residuals,phi = est1$phi,theta = est1$theta, lastn = FALSE,n.ahead = 7)
+short_fl_mlr_m  = preds + forecasts$f
+
+#long
+preds = predict(fit, newdata = longdata)
+forecasts = fore.arma.wge(fit$residuals,phi = est1$phi,theta = est1$theta, lastn = FALSE,n.ahead = 90)
+long_fl_mlr_m  = preds + forecasts$f
+
+
+plot(newcases_fl$positiveIncrease, type = "l", xlim = c(1,145), main = "Florida Short Term MLR Multivariate Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(ts(short_fl_mlr_m, start = 136), col = "blue")
+
+plot(newcases_fl$positiveIncrease, type = "l", xlim = c(1,235), main = "Florida States Long Term MLR Multivariate Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(ts(long_fl_mlr_m,start = 136), col = "blue")
+
 
 ```
 
@@ -608,6 +694,15 @@ plot(newcases_fl_multi$positiveIncrease, type = "l", main = "Florida Multivariat
 lines(all_f, col = "blue")
 
 #Forecast beyond data
+mlp.fit = mlp(ts(newcases_fl_multi$positiveIncrease), hd = 5, comb = "median", xreg = newvar_fore_fl[1:135,])
+short_fl_mlp_m = forecast(mlp.fit,h = 7, xreg = newvar_fore_fl[1:145,])
+long_fl_mlp_m = forecast(mlp.fit,h = 90, xreg = newvar_fore_fl[1:225,])
+
+plot(newcases_fl$positiveIncrease, type = "l", xlim = c(1,145),ylim = c(0,21000), main = "Florida Short Term MLP Multivariate Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(short_fl_mlp_m$mean, col = "blue")
+
+plot(newcases_fl$positiveIncrease, type = "l", xlim = c(1,245),ylim = c(0,69000), main = "Florida Long Term MLP Multivariate Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(long_fl_mlp_m$mean, col = "blue")
 
 
 
@@ -627,6 +722,22 @@ lines(ensemble_fore, col = "blue")
 ASE_fl_multi = mean((newcases_fl_multi$positiveIncrease[124:135] -ensemble_fore)^2)
 ASE_fl_multi
 #ASE of 8,427,522
+
+#future
+
+#long_fl_mlp_m
+#short_fl_mlp_m
+
+
+ensemble_fl_fore_short = ( short_fl_mlp_m$mean+ short_fl_mlr_m)/2
+ensemble_fl_fore_long = (long_fl_mlp_m$mean + long_fl_mlr_m)/2
+
+plot(newcases_fl$positiveIncrease, type = "l", xlim = c(1,145),ylim = c(0,21000), main = "Florida Short Term Multivariate Ensemble Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(ensemble_fl_fore_short, col = "blue")
+
+plot(newcases_fl$positiveIncrease, type = "l", xlim = c(1,235), ylim = c(0,40000),main = "Florida Long Term Multivariate Ensemble Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(ensemble_fl_fore_long, col = "blue")
+
 
 ```
 
@@ -706,6 +817,30 @@ ASE = mean((newcases_us_multi$positiveIncrease[166:177] - FinalPredictions_us_ML
 ASE
 #108181241
 
+#Forecasting Ahead
+
+shortdata = data.frame(totalTestResultsIncrease = rep(est_tests,7), hospitalizedIncrease = rep(est_hospital,7))
+longdata =data.frame(totalTestResultsIncrease = rep(est_tests,90), hospitalizedIncrease = rep(est_hospital,90))
+
+
+fit = lm(positiveIncrease~totalTestResultsIncrease + hospitalizedIncrease, data = newcases_us_multi)
+#short
+preds = predict(fit, newdata = shortdata)
+forecasts = fore.arma.wge(fit$residuals,phi = est1$phi,theta = est1$theta, lastn = FALSE,n.ahead = 7)
+short_us_mlr_m  = preds + forecasts$f
+
+#long
+preds = predict(fit, newdata = longdata)
+forecasts = fore.arma.wge(fit$residuals,phi = est1$phi,theta = est1$theta, lastn = FALSE,n.ahead = 90)
+long_us_mlr_m  = preds + forecasts$f
+
+
+plot(newcases_us$positiveIncrease, type = "l", xlim = c(1,187), main = "United States Short Term MLR Multivariate Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(ts(short_us_mlr_m, start = 178), col = "blue")
+
+plot(newcases_us$positiveIncrease, type = "l", xlim = c(1,277), main = "United States Long Term MLR Multivariate Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(ts(long_us_mlr_m,start = 178), col = "blue")
+
 ```
 
 ####US MLP/RNN Model
@@ -763,6 +898,20 @@ ASE_final12
 #45799110
 
 
+#Future Forecasts
+mlp.fit = mlp(ts(newcases_us_multi$positiveIncrease), hd = 5, comb = "median", xreg = newvar_fore_us[1:177,])
+short_us_mlp_m = forecast(mlp.fit,h = 7, xreg = newvar_fore_us[1:187,])
+long_us_mlp_m = forecast(mlp.fit,h = 90, xreg = newvar_fore_us[1:267,])
+
+plot(newcases_us$positiveIncrease, type = "l", xlim = c(1,187), main = "United States Short Term MLP Multivariate Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(short_us_mlp_m$mean, col = "blue")
+
+plot(newcases_us$positiveIncrease, type = "l", xlim = c(1,277), main = "United States Long Term MLP Multivariate Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(long_us_mlp_m$mean, col = "blue")
+
+
+
+
 ```
 
 
@@ -778,6 +927,22 @@ lines(ensemble_us_fore, col = "blue")
 ASE_final12 = mean((newcases_us_multi$positiveIncrease[166:177] -ensemble_us_fore)^2)
 ASE_final12
 #70596024
+
+#Forecasting
+#short_us_mlr_m  
+#short_us_mlp_m
+
+#long_us_mlr_m
+#long_us_mlp_m
+
+ensemble_us_fore_short = ( short_us_mlp_m$mean+ short_us_mlr_m)/2
+ensemble_us_fore_long = (long_us_mlp_m$mean + long_us_mlr_m)/2
+
+plot(newcases_us$positiveIncrease, type = "l", xlim = c(1,187), main = "United States Short Term Multivariate Ensemble Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(ensemble_us_fore_short, col = "blue")
+
+plot(newcases_us$positiveIncrease, type = "l", xlim = c(1,277), main = "United States Long Term Multivariate Ensemble Forecasts", ylab = "Count of Cases", xlab= "Time")
+lines(ensemble_us_fore_long, col = "blue")
 
 ```
 
