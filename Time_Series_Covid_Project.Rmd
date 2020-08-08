@@ -56,8 +56,8 @@ Insert exploration of cases, deaths, hospitalizations etc.
 Plotting the daily positive cases in Florida and US. 
 
 ```{r}
-plot(x = seq(1,len_fl), y = initial_data_fl$positiveIncrease, type = "l")
-plot(x = seq(1,len_us), y = initial_data_us$positiveIncrease, type = "l")
+plot(x = seq(1,len_fl), y = initial_data_fl$positiveIncrease, type = "l", ylab = "Count of Cases", xlab = "Time", main ="Count of Daily Covid19 Cases - Florida")
+plot(x = seq(1,len_us), y = initial_data_us$positiveIncrease, type = "l", ylab = "Count of Cases", xlab = "Time", main ="Count of Daily Covid19 Cases - United States")
 ```
 
 ##*Positive Percentage*
@@ -133,12 +133,12 @@ md.pattern(newcases_us)
 ```
 
 
-###**Florida Daily Cases:**
+### **Florida Daily Cases:**
 
 
-```{r}
-
-plotts.sample.wge(newcases_fl$positiveIncrease)
+```{r results='hide'}
+#no text output, just the plots
+x = plotts.sample.wge(newcases_fl$positiveIncrease)
 
 ```
 
@@ -154,9 +154,11 @@ plotts.sample.wge(newcases_fl$positiveIncrease)
 
 
 
-```{r}
-plotts.sample.wge(newcases_us$positiveIncrease)
+```{r results='hide'}
+#no text output
+x = plotts.sample.wge(newcases_us$positiveIncrease)
 
+dev.off()
 plot(x = seq(1,len_us), y = newcases_us$positiveIncrease, type = "l", main = 'United States Covid-19 Daily Positive Cases', xlab = 'Time (Days From Start of Pandemic)', ylab = 'Positive Daily Cases')
  
 ```
@@ -172,44 +174,53 @@ plot(x = seq(1,len_us), y = newcases_us$positiveIncrease, type = "l", main = 'Un
 ###Model Building for Cases in Florida
 
 
-Stationarity vs non-stationarity - concerns about the data
+A. Stationarity vs Non-Stationarity
 
-```{r}
-plotts.sample.wge(newcases_fl$positiveIncrease, arlimits = TRUE)
+Overall we see slowly dampening ACFs, combined with a strong aperiodic frequency at zero in our spectral density. These measures alone with a recently quickly rising case count in recent days gives us strong evidence that our data is non-stationary. Given Covid19 spread, it is likely we see continued rising behavior in the short term, some return to lower numbers in the coming months but more uncertainty as new spikes could arise, and in the longest term of years on, we expect new cases to diminish to zero once the pandemic has ended spread. 
 
-```
-
-
-Model IDing of stationary models
-
-```{r}
+```{r results='hide'}
+x = plotts.sample.wge(newcases_fl$positiveIncrease, arlimits = TRUE)
 
 ```
 
-
-Model Building 
-
-
-
-####Florida Cases - ARMA(2,1) Model
-
-To model Florida cases we start with a base model. We can see that the most favored model by BIC is an AR(1). So we begin by building that model. Our AR(1) has a phi of .975, quite close to the unit circle, which we expect to model strongly wandering behavior. 
-
-This model has an AIC estimate of 14.01. 
-
-In order to estimate an average ASE, we are running this model over segments of our data with 54 iterations. In each case training with at least seventy data points and predicting on twelve. Overall this produces an average ASE of 6,353,070. 
-
-Below our ASE estimates we forecast short term and long term forecasts and both follow AR(1) behavior of data dampening towards our mean. 
-
+B. Non Stationary Modeling 
 
 ```{r}
+
+diff_fl = artrans.wge(newcases_fl$positiveIncrease, 1)
+
+```
+
+C. Model IDing of stationary models
+
+To model a stationary case 
+
+```{r}
+#Model Differenced Data
+aic5.wge(diff_fl)
+aic5.wge(diff_fl, type = "bic") #2,2 produced
+
+
+#Modeling original data if stationary
 aic5.wge(newcases_fl$positiveIncrease)
+
 aic5.wge(newcases_fl$positiveIncrease, type = 'bic')
 
+```
 
-fl_arma_21 = est.arma.wge(newcases_fl$positiveIncrease, p = 2, q = 1)
-fl_arma_21
-fl_arma_21$aic
+
+D. Model Building 
+
+Below we are building three sepearte univariate models to predict new Covid cases in Florida. This first model is an ARMA(2,1) model built of the AIC and BIC favored results from above. 
+
+#### Florida Cases - ARIMA Model
+
+
+```{r}
+
+fl_arima = est.arma.wge(diff_fl, p = 2, q = 2)
+
+fl_arima$aic
 
 trainingSize = 70
 horizon = 12
@@ -218,7 +229,7 @@ ASEHolder = numeric()
 for( i in 1:(135-(trainingSize + horizon) + 1))
 {
   
-  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_arma_21$phi, theta = fl_arma_21$theta, n.ahead = horizon, plot = FALSE)
+  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_arima$phi, theta = fl_arima$theta, d = 1, n.ahead = horizon, plot = FALSE)
   
   ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
   ASEHolder[i] = ASE
@@ -227,30 +238,31 @@ for( i in 1:(135-(trainingSize + horizon) + 1))
 
 ASEHolder
 #Distribution of ASEs on Two Week Periods
-hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,2) for Florida Data")
 
 #Mean ASE 
 WindowedASE = mean(ASEHolder)
 WindowedASE
-##6154656
+##
 
 
 
-short_fl_arma = fore.aruma.wge(newcases_fl$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 7, plot = TRUE)
+short_fl_arima = fore.aruma.wge(newcases_fl$positiveIncrease,phi = fl_arima$phi,theta = fl_arima$theta, d=1, n.ahead = 7, plot = TRUE)
 
-long_fl_arma = fore.aruma.wge(newcases_fl$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 90, plot = TRUE)
+long_fl_arima = fore.aruma.wge(newcases_fl$positiveIncrease,phi = fl_arima$phi,theta = fl_arima$theta, d=1 ,n.ahead = 90, plot = TRUE)
 
-final_pred = fore.aruma.wge(newcases_fl$positiveIncrease[1:123],phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 12, plot = TRUE)
+final_pred = fore.aruma.wge(newcases_fl$positiveIncrease[1:123],phi = fl_arima$phi,theta = fl_arima$theta, d=1, n.ahead = 12, plot = TRUE)
 final_pred_df = data.frame(t = seq(124:135), final_pred$f)
 
-plot(newcases_fl$positiveIncrease, type = "l", ylab = "Count of New Cases", xlab = "Time", main = "Florida ARMA(2,1) Model Final 12 Predictions")
+plot(newcases_fl$positiveIncrease, type = "l", ylab = "Count of New Cases", xlab = "Time", main = "Florida ARIMA(2,1,2) Model Final 12 Predictions", xlim = c(1,140))
 lines(ts(final_pred$f, start = 124, end = 135),  col = "blue")
- 
+
+final_ASE = mean((newcases_fl$positiveIncrease[124:135] - final_pred$f)^2)
+final_ASE
 
 
 
 ```
-
 
 
 
@@ -273,7 +285,7 @@ for( i in 1:(135-(trainingSize + horizon) + 1))
   forecasts = forecast(mlp.fit,h = horizon)
   
   ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] -forecasts$mean)^2)
-  print(c(i,ASE, "from",trainingSize+i,"to",(trainingSize+ i + (horizon) - 1)))
+  
   ASEHolder[i] = ASE
   
 }
@@ -291,6 +303,9 @@ plot(forecasts)
 #Final Forecasts with data known
 mlp.fit_fl_final = mlp(ts(newcases_fl$positiveIncrease[1:123]), hd = 5, comb = "median")
 forecasts_fl_mlp = forecast(mlp.fit,h = 12)
+
+final12_ase = mean((newcases_fl$positiveIncrease[124:135] -forecasts_fl_mlp$mean)^2)
+final12_ase
 
 all_f = c(rep(1,4), forecasts$fitted, forecasts$mean)
 plot(newcases_fl$positiveIncrease, type = "l", ylab = "New Daily Cases", xlab = "Day", main = "")
@@ -330,11 +345,11 @@ forecasts_fl_long = forecast(mlp.fit,h = 90)
 ```{r}
 #ASE fits for ensemble
 mlp.fit_fl_final = mlp(ts(newcases_fl$positiveIncrease[1:123]), hd = 5, comb = "median")
-forecasts_fl_mlp = forecast(mlp.fit,h = 12)
+forecasts_fl_mlp = forecast(mlp.fit_fl_final, h = 12)
 
-forecasts_fl_arma = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_arma_21$phi, theta = fl_arma_21$theta, n.ahead = 12, plot = FALSE)
+forecasts_fl_arima = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_arma_21$phi, theta = fl_arma_21$theta, d=1, n.ahead = 12, plot = FALSE)
 
-ensemble_fl_fore = (forecasts_fl_mlp$mean + forecasts_fl_arma$f) / 2
+ensemble_fl_fore = (forecasts_fl_mlp$mean + forecasts_fl_arima$f) / 2
 
 ensemble_ASE = mean((newcases_fl$positiveIncrease[124:135] - ensemble_fl_fore)^2)
 ensemble_ASE
@@ -346,8 +361,8 @@ lines(ensemble_fl_fore, col = "blue")
 
 #future forecasting
  
-short_fl_ensemble = (short_fl_mlp$mean + short_fl_arma$f)/2
-long_fl_ensemble = (long_fl_mlp$mean + long_fl_arma$f)/2
+short_fl_ensemble = (short_fl_mlp$mean + short_fl_arima$f)/2
+long_fl_ensemble = (long_fl_mlp$mean + long_fl_arima$f)/2
 
 
 
@@ -372,26 +387,50 @@ Comparing and Assessing Models
 ###Model Building for Cases United States
 
 
-Stationarity vs non-stationarity - concerns about the data
+A. Stationarity vs Non-Stationarity
 
-```{r}
+Overall we see slowly dampening ACFs, combined with a strong aperiodic frequency at zero in our spectral density. These measures alone with a recently quickly rising case count in recent days gives us strong evidence that our data is non-stationary. Given Covid19 spread, it is likely we see continued rising behavior in the short term, some return to lower numbers in the coming months but more uncertainty as new spikes could arise, and in the longest term of years on, we expect new cases to diminish to zero once the pandemic has ended spread. 
+
+```{r results='hide'}
+
+#no text output
+x = plotts.sample.wge(newcases_us$positiveIncrease)
 
 ```
 
-
-Model IDing of stationary modls 
-
-
-####US Cases ARMA(1,2)
+B. Non-Stationary Modeling
 
 ```{r}
+
+diff_us = artrans.wge(newcases_us$positiveIncrease, 1)
+
+```
+
+C. Model IDing of stationary models 
+
+```{r}
+#modeling as non-stationary
+#0,5 maxes out
+aic5.wge(diff_us, p = 3:10)
+aic5.wge(diff_us, type = 'bic',p = 3:10)
+
+
+#Modeling as stationary
 aic5.wge(newcases_us$positiveIncrease)
 aic5.wge(newcases_us$positiveIncrease, type = 'bic')
 
+```
 
-us_arma_12 = est.arma.wge(newcases_us$positiveIncrease, p = 1, q = 2)
-us_arma_12
-us_arma_12$aic
+D. Model Building 
+
+
+####US Cases ARIMA
+
+```{r}
+
+
+us_arima = est.arma.wge(diff_us, p = 6, q = 2)
+us_arima$aic
 
 trainingSize = 70
 horizon = 12
@@ -400,7 +439,7 @@ ASEHolder = numeric()
 for( i in 1:(177-(trainingSize + horizon) + 1))
 {
   
-  forecasts = fore.aruma.wge(newcases_us$positiveIncrease[i:(i+(trainingSize-1))],phi = us_arma_12$phi, theta = us_arma_12$theta, n.ahead = horizon, plot = FALSE)
+  forecasts = fore.aruma.wge(newcases_us$positiveIncrease[i:(i+(trainingSize-1))],phi = us_arima$phi, theta = us_arima$theta, d = 1, n.ahead = horizon, plot = FALSE)
   
   ASE = mean((newcases_us$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
   ASEHolder[i] = ASE
@@ -409,24 +448,26 @@ for( i in 1:(177-(trainingSize + horizon) + 1))
 
 ASEHolder
 #Distribution of ASEs on Two Week Periods
-hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(6,1,2) for US Data")
 
 #Mean ASE 
 WindowedASE = mean(ASEHolder)
 WindowedASE
-#55171440
+#26724396
 
 
-short_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_arma_12$phi,theta = us_arma_12$theta, n.ahead = 7, plot = TRUE)
+short_us_arima = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_arima$phi,theta = us_arima$theta, d = 1, n.ahead = 7, plot = TRUE)
 
-long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_arma_12$phi,theta = us_arma_12$theta, n.ahead = 90, plot = TRUE)
+long_us_arima = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_arima$phi,theta = us_arima$theta, d = 1, n.ahead = 90, plot = TRUE)
 
 
 
-final_pred = fore.aruma.wge(newcases_us$positiveIncrease[1:165],phi = us_arma_12$phi,theta = us_arma_12$theta, n.ahead = 12, plot = TRUE)
-final_pred_df = data.frame(t = seq(166:177), final_pred$f)
+final_pred = fore.aruma.wge(newcases_us$positiveIncrease[1:165],phi = us_arima$phi,theta = us_arima$theta, d = 1, n.ahead = 12, plot = TRUE)
 
-plot(newcases_us$positiveIncrease, type = "l", ylab = "Count of New Cases", xlab = "Time", main = "United States ARMA(1,2) Model Final 12 Predictions")
+final_12_ase = mean((newcases_us$positiveIncrease[166:177] - final_pred$f)^2)
+final_12_ase
+
+plot(newcases_us$positiveIncrease, type = "l", ylab = "Count of New Cases", xlab = "Time", main = "United States ARIMA(6,1,2) Model Final 12 Predictions")
 lines(ts(final_pred$f, start = 166, end = 177),  col = "blue")
 
 
@@ -459,7 +500,6 @@ for( i in 1:(177-(trainingSize + horizon) + 1))
   forecasts = forecast(mlp.fit,h = horizon)
   
   ASE = mean((newcases_us$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] -forecasts$mean)^2)
-  print(c(i,ASE, "from",trainingSize+i,"to",(trainingSize+ i + (horizon) - 1)))
   ASEHolder[i] = ASE
   
 }
@@ -480,15 +520,15 @@ plot(forecasts)
 mlp.fit = mlp(ts(newcases_us$positiveIncrease[1:165]), hd = 5, comb = "median")
 forecasts_us_mlp = forecast(mlp.fit,h = 12)
   
-ASE = mean((newcases_us$positiveIncrease[166:177] -forecasts$mean)^2)
+ASE = mean((newcases_us$positiveIncrease[166:177] -forecasts_us_mlp$mean)^2)
 ASE
 #53,843,551
 plot(newcases_us$positiveIncrease, type = "l")
-lines(forecasts$fitted, col = "blue")
+lines(forecasts_us_mlp$fitted, col = "blue")
 
 
-all_f = c(forecasts_us_mlp$fitted, forecasts$mean)
-plot(newcases_us$positiveIncrease, type = "l")
+all_f = c(rep(1,4),forecasts_us_mlp$fitted, forecasts_us_mlp$mean)
+plot(newcases_us$positiveIncrease, type = "l", ylab = "Count of Cases", xlab = "Time", main = "US MLP Cases Model")
 lines(all_f, col = "blue")
 
 #Future Predictions
@@ -516,21 +556,21 @@ lines(long_us_mlp$mean, col = "blue")
 #forecasts_us_mlp = forecast(mlp.fit_us_final,h = 12)
 
 
-forecasts_arma_us = fore.aruma.wge(newcases_us$positiveIncrease[1:165],phi = us_arma_12$phi,theta = us_arma_12$theta, n.ahead = 12, plot = TRUE)
+forecasts_arima_us = fore.aruma.wge(newcases_us$positiveIncrease[1:165],phi = us_arima$phi,theta = us_arima$theta, d = 1, n.ahead = 12, plot = TRUE)
 
-ensemble_fore = (forecasts_us_mlp$mean + forecasts_arma_us$f) / 2
+ensemble_fore = (forecasts_us_mlp$mean + forecasts_arima_us$f) / 2
 
 ensemble_ASE = mean((newcases_us$positiveIncrease[166:177] -ensemble_fore)^2)
 ensemble_ASE
-#114 mill
+#
 
 plot(newcases_us$positiveIncrease, type = "l", ylab = "Count of New Cases", xlab = "Time")
 lines(ensemble_fore, col = "blue")
 
 #Forecasting ahead
-short_ensemble_us = (short_us_mlp$mean +short_us_ar1$f)/2
+short_ensemble_us = (short_us_mlp$mean +short_us_arima$f)/2
 
-long_ensemble_us = (long_us_mlp$mean +long_us_ar1$f)/2
+long_ensemble_us = (long_us_mlp$mean +long_us_arima$f)/2
 
 
 plot(newcases_us$positiveIncrease, type = "l", xlim = c(1,187), main = "United States Short Term Ensemble Forecasts", ylab = "Count of Cases", xlab= "Time")
@@ -551,9 +591,8 @@ Model Building
 
 ##*Goal Three: Multivariate Analysis*
 
-```{r}
 
-```
+
 
 ```{r}
 
@@ -591,20 +630,66 @@ dim(newvar_fore_fl)
 
 ###Multivariate Model Building for Florida Cases
 
+
+
+A. Stationarity vs Non-Stationarity
+
+Overall we see slowly dampening ACFs, combined with a strong aperiodic frequency at zero in our spectral density. These measures alone with a recently quickly rising case count in recent days gives us strong evidence that our data is non-stationary. Given Covid19 spread, it is likely we see continued rising behavior in the short term, some return to lower numbers in the coming months but more uncertainty as new spikes could arise, and in the longest term of years on, we expect new cases to diminish to zero once the pandemic has ended spread. 
+
+```{r results='hide'}
+x = plotts.sample.wge(newcases_fl$positiveIncrease, arlimits = TRUE)
+
+```
+
+B. Non-Stationary Modeling
+
+C. Model ID 
+
+D. Model Building 
+
 ####Florida MLR Model
 ```{r}
-
 fit = lm(positiveIncrease~totalTestResultsIncrease + hospitalizedIncrease, data = newcases_fl_multi)
 summary(fit)
+aic5.wge(fit$residuals)#picks 1,1
+
+est1 = est.arma.wge(fit$residuals, p = 1, q = 1)
+
 
 est_tests = mean(tail(newcases_fl_multi$totalTestResultsIncrease))
 est_hospital= mean(tail(newcases_fl_multi$hospitalizedIncrease))
+
+for( i in 1:(135-(trainingSize + horizon) ))
+{
+  fit = lm(positiveIncrease~totalTestResultsIncrease + hospitalizedIncrease, data = newcases_fl_multi[1:trainingSize+i,])
+  newdata = data.frame(totalTestResultsIncrease = rep(est_tests,horizon), hospitalizedIncrease = rep(est_hospital,horizon))
+  
+  preds = predict(fit, newdata = newdata)
+  forecasts = fore.arma.wge(fit$residuals,phi = est1$phi,theta = est1$theta, lastn = FALSE,n.ahead = horizon, plot = FALSE)
+  
+  final_pred  = preds + forecasts$f
+
+  
+  ASE = mean((newcases_fl_multi$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] -final_pred)^2)
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for MLR Model Florida Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
+
+
+
+fit = lm(positiveIncrease~totalTestResultsIncrease + hospitalizedIncrease, data = newcases_fl_multi)
+summary(fit)
 newdata = data.frame(totalTestResultsIncrease = rep(est_tests,12), hospitalizedIncrease = rep(est_hospital,12))
 
 preds = predict(fit, newdata = newdata)
-
-
-
 aic5.wge(fit$residuals)#picks 1,1
 
 est1 = est.arma.wge(fit$residuals, p = 1, q = 1)
@@ -612,19 +697,22 @@ est1 = est.arma.wge(fit$residuals, p = 1, q = 1)
 forecasts = fore.arma.wge(fit$residuals,phi = est1$phi,theta = est1$theta, lastn = FALSE,n.ahead = 12)
 FinalPredictions_fl_MLR  = preds + forecasts$f
 
+
 plot(newcases_fl$positiveIncrease, type = "l", main ="Florida Multivariate MLR with Correlated Residuals Model", xlab = "Time", ylab = "Count of Cases")
 lines(ts(FinalPredictions_fl_MLR, start = 124), col = "blue")
 
 
 ASE = mean((newcases_fl_multi$positiveIncrease[124:135] - FinalPredictions_fl_MLR)^2)
 ASE
-#7223923
 
+  
 
 #Forecasting Ahead
 
 shortdata = data.frame(totalTestResultsIncrease = rep(est_tests,7), hospitalizedIncrease = rep(est_hospital,7))
 longdata =data.frame(totalTestResultsIncrease = rep(est_tests,90), hospitalizedIncrease = rep(est_hospital,90))
+
+
 
 
 fit = lm(positiveIncrease~totalTestResultsIncrease + hospitalizedIncrease, data = newcases_fl_multi)
@@ -668,7 +756,6 @@ for( i in 1:(135-(trainingSize + horizon) ))
   forecasts = forecast(mlp.fit,h = horizon, xreg = newcases_fl_var[1:(trainingSize + i + 12),])
   
   ASE = mean((newcases_fl_multi$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] -forecasts$mean)^2)
-  print(c(i,ASE, "from",trainingSize+i,"to",(trainingSize+ i + (horizon) - 1)))
   ASEHolder[i] = ASE
   
 }
@@ -705,6 +792,8 @@ plot(newcases_fl$positiveIncrease, type = "l", xlim = c(1,245),ylim = c(0,69000)
 lines(long_fl_mlp_m$mean, col = "blue")
 
 
+final_12_ase = mean((newcases_fl_multi$positiveIncrease[124:135] -fl_multi_mlp_fore)^2)
+final_12_ase
 
 
 ```
@@ -750,11 +839,27 @@ Compare Multivariate Models
 
 ###Multivariate US Models
 
-```{r}
-#Forecast variables
+A. Stationarity vs Non-Stationarity
+
+Overall we see slowly dampening ACFs, combined with a strong aperiodic frequency at zero in our spectral density. These measures alone with a recently quickly rising case count in recent days gives us strong evidence that our data is non-stationary. Given Covid19 spread, it is likely we see continued rising behavior in the short term, some return to lower numbers in the coming months but more uncertainty as new spikes could arise, and in the longest term of years on, we expect new cases to diminish to zero once the pandemic has ended spread. 
+
+```{r results='hide'}
+
+#no text output
+x = plotts.sample.wge(newcases_us$positiveIncrease)
 
 ```
 
+B. Non-Stationary Modeling
+
+
+C. Model IDing of stationary models 
+
+
+
+D. Model Building 
+
+In order to forecast multivariate models of new case numbers, we will first fit some new variables for future MLP type models. 
 
 ```{r}
 newcases_us_multi =  initial_data_us %>% dplyr::select(positiveIncrease, totalTestResultsIncrease, hospitalizedIncrease, deathIncrease)
@@ -792,7 +897,6 @@ dim(newvar_fore_us)
 ####US MLR with Correlated Errors Model  
 ```{r}
 fit = lm(positiveIncrease~totalTestResultsIncrease + hospitalizedIncrease, data = newcases_us_multi[1:165,])
-summary(fit)
 
 est_tests = mean(tail(newcases_us_multi$totalTestResultsIncrease))
 est_hospital= mean(tail(newcases_us_multi$hospitalizedIncrease))
@@ -806,6 +910,34 @@ aic5.wge(fit$residuals)#picks 3,2 with full data
 
 est1 = est.arma.wge(fit$residuals, p = 3, q = 2)
 
+for( i in 1:(177-(trainingSize + horizon) ))
+{
+  fit = lm(positiveIncrease~totalTestResultsIncrease + hospitalizedIncrease, data = newcases_us_multi[1:trainingSize+i,])
+  newdata = data.frame(totalTestResultsIncrease = rep(est_tests,horizon), hospitalizedIncrease = rep(est_hospital,horizon))
+  
+  preds = predict(fit, newdata = newdata)
+  forecasts = fore.arma.wge(fit$residuals,phi = est1$phi,theta = est1$theta, lastn = FALSE,n.ahead = horizon, plot = FALSE)
+  
+  final_pred  = preds + forecasts$f
+
+  
+  ASE = mean((newcases_us_multi$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] -final_pred)^2)
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for MLR Model Florida Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
+
+
+fit = lm(positiveIncrease~totalTestResultsIncrease + hospitalizedIncrease, data = newcases_us_multi[1:165,])
+preds = predict(fit, newdata = newdata)
+
 forecasts = fore.arma.wge(fit$residuals,phi = est1$phi,theta = est1$theta, lastn = FALSE,n.ahead = 12)
 FinalPredictions_us_MLR  = preds + forecasts$f
 
@@ -815,7 +947,7 @@ lines(ts(FinalPredictions_us_MLR, start = 166), col = "blue")
 
 ASE = mean((newcases_us_multi$positiveIncrease[166:177] - FinalPredictions_us_MLR)^2)
 ASE
-#108181241
+#
 
 #Forecasting Ahead
 
@@ -858,7 +990,6 @@ for( i in 1:(177-(trainingSize + horizon) + 1))
   forecasts = forecast(mlp.fit,h = horizon, xreg = newvar_fore_us[1:(trainingSize + i + 13),])
   
   ASE = mean((newcases_us_multi$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] -forecasts$mean)^2)
-  print(c(i,ASE, "from",trainingSize+i,"to",(trainingSize+ i + (horizon) - 1)))
   ASEHolder[i] = ASE
   
 }
