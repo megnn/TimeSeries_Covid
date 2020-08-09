@@ -123,7 +123,7 @@ ASEHolder = numeric()
 for( i in 1:(135-(trainingSize + horizon) + 1))
 {
   
-  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = model_arima$coef[1:2], s = 7, d = 2, n.ahead = horizon, plot = FALSE)
+  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = model_arima$coef[1:2], s = 7, d = 1, n.ahead = horizon, plot = FALSE)
   
   ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
   ASEHolder[i] = ASE
@@ -139,9 +139,9 @@ WindowedASE = mean(ASEHolder)
 WindowedASE
 #25257410
 
-short_fl_ar1 = fore.aruma.wge(newcases_fl$positiveIncrease,phi = model_arima$coef[1:2], s = 7, d = 2, n.ahead = 7, plot = TRUE)
+short_fl_ar1 = fore.aruma.wge(newcases_fl$positiveIncrease,phi = model_arima$coef[1:2], s = 7, d = 1, n.ahead = 7, plot = TRUE)
 
-long_fl_ar1 = fore.aruma.wge(newcases_fl$positiveIncrease,phi = model_arima$coef[1:2], s = 7, d = 2,  n.ahead = 90, plot = TRUE)
+long_fl_ar1 = fore.aruma.wge(newcases_fl$positiveIncrease,phi = model_arima$coef[1:2], s = 7, d = 1,  n.ahead = 90, plot = TRUE)
 
 
 
@@ -165,6 +165,106 @@ plot(preds)
 ASE = mean((newcases_fl_multi$positiveIncrease[123:135] - preds$fcst$positiveIncrease)^2)
 ASE 
 #35935880
+
+
+
+```
+
+#### Florida Cases - ARMA Model
+
+```{r}
+
+fl_arma_21 = est.arma.wge(newcases_fl$positiveIncrease, p = 2, q = 1)
+
+fl_arma_21$aic
+
+trainingSize = 70
+horizon = 12
+ASEHolder = numeric()
+
+for( i in 1:(135-(trainingSize + horizon) + 1))
+{
+  
+  forecasts = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_arma_21$phi, theta = fl_arma_21$theta, n.ahead = horizon, plot = FALSE)
+  
+  ASE = mean((newcases_fl$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
+##6154656
+
+
+
+short_fl_arma = fore.aruma.wge(newcases_fl$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 7, plot = TRUE)
+
+long_fl_arma = fore.aruma.wge(newcases_fl$positiveIncrease,phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 90, plot = TRUE)
+
+final_pred = fore.aruma.wge(newcases_fl$positiveIncrease[1:123],phi = fl_arma_21$phi,theta = fl_arma_21$theta, n.ahead = 12, plot = TRUE)
+final_pred_df = data.frame(t = seq(124:135), final_pred$f)
+
+plot(newcases_fl$positiveIncrease, type = "l", ylab = "Count of New Cases", xlab = "Time", main = "Florida ARMA(2,1) Model Final 12 Predictions")
+lines(ts(final_pred$f, start = 124, end = 135),  col = "blue")
+
+final_ASE = mean((newcases_fl$positiveIncrease[124:135] - final_pred$f)^2)
+final_ASE
+
+
+
+```
+
+
+####US Cases ARMA(1,2)
+
+```{r}
+
+
+us_arma_12 = est.arma.wge(newcases_us$positiveIncrease, p = 1, q = 2)
+us_arma_12
+us_arma_12$aic
+
+trainingSize = 70
+horizon = 12
+ASEHolder = numeric()
+
+for( i in 1:(177-(trainingSize + horizon) + 1))
+{
+  
+  forecasts = fore.aruma.wge(newcases_us$positiveIncrease[i:(i+(trainingSize-1))],phi = us_arma_12$phi, theta = us_arma_12$theta, n.ahead = horizon, plot = FALSE)
+  
+  ASE = mean((newcases_us$positiveIncrease[(trainingSize+i):(trainingSize+ i + (horizon) - 1)] - forecasts$f)^2)
+  ASEHolder[i] = ASE
+  
+}
+
+ASEHolder
+#Distribution of ASEs on Two Week Periods
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for Model ARIMA(2,1,1) for Florida Data")
+
+#Mean ASE 
+WindowedASE = mean(ASEHolder)
+WindowedASE
+#55171440
+
+
+short_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_arma_12$phi,theta = us_arma_12$theta, n.ahead = 7, plot = TRUE)
+
+long_us_ar1 = fore.aruma.wge(newcases_us$positiveIncrease,phi = us_arma_12$phi,theta = us_arma_12$theta, n.ahead = 90, plot = TRUE)
+
+
+
+final_pred = fore.aruma.wge(newcases_us$positiveIncrease[1:165],phi = us_arma_12$phi,theta = us_arma_12$theta, n.ahead = 12, plot = TRUE)
+final_pred_df = data.frame(t = seq(166:177), final_pred$f)
+
+plot(newcases_us$positiveIncrease, type = "l", ylab = "Count of New Cases", xlab = "Time", main = "United States ARMA(1,2) Model Final 12 Predictions")
+lines(ts(final_pred$f, start = 166, end = 177),  col = "blue")
 
 
 

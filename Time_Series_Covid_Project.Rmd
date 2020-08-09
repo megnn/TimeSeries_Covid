@@ -51,9 +51,8 @@ len_us = dim(initial_data_us)[1]
 
 ```
 
-Insert exploration of cases, deaths, hospitalizations etc. 
 
-Plotting the daily positive cases in Florida and US. 
+Below we plot the realizations of daily new cases from both Florida and the United States as a whole. 
 
 ```{r}
 plot(x = seq(1,len_fl), y = initial_data_fl$positiveIncrease, type = "l", ylab = "Count of Cases", xlab = "Time", main ="Count of Daily Covid19 Cases - Florida")
@@ -143,13 +142,6 @@ x = plotts.sample.wge(newcases_fl$positiveIncrease)
 ```
 
 
-
-
-
-
-
-
-
 ###**US Daily Cases:**
 
 
@@ -162,9 +154,6 @@ dev.off()
 plot(x = seq(1,len_us), y = newcases_us$positiveIncrease, type = "l", main = 'United States Covid-19 Daily Positive Cases', xlab = 'Time (Days From Start of Pandemic)', ylab = 'Positive Daily Cases')
  
 ```
-
-
-
 
 
 
@@ -185,6 +174,10 @@ x = plotts.sample.wge(newcases_fl$positiveIncrease, arlimits = TRUE)
 
 B. Non Stationary Modeling 
 
+We did not do any differencing of our data set to account for this non-stationarity. Going into this project we knew that because of the failure to contain the Covid-19 outbreak we would see large spikes of cases in recent time periods compared to distant time periods. We feel that this is an important aspect of our data that we want to portray in our models because we can see empirically in Florida and the United States as a whole that both individual behavior and political policy continue to trend towards further outbreak and rapid, almost exponential daily case growth. While some states with compliant individual behavior and strong political Covid-19 policies have shown “completed” Covid-19 curves, where daily case count begins to trend downwards towards zero, Florida is the opposite. Therefore, since we empirically expect the trend of non-stationarity to continue, we want that represented in our models. This is a fundamental assumption that our models are built on.
+
+
+
 ```{r}
 
 diff_fl = artrans.wge(newcases_fl$positiveIncrease, 1)
@@ -193,7 +186,7 @@ diff_fl = artrans.wge(newcases_fl$positiveIncrease, 1)
 
 C. Model IDing of stationary models
 
-To model a stationary case 
+For ARIMA models we identify the stationary components below. 
 
 ```{r}
 #Model Differenced Data
@@ -211,7 +204,6 @@ aic5.wge(newcases_fl$positiveIncrease, type = 'bic')
 
 D. Model Building 
 
-Below we are building three sepearte univariate models to predict new Covid cases in Florida. This first model is an ARMA(2,1) model built of the AIC and BIC favored results from above. 
 
 #### Florida Cases - ARIMA Model
 
@@ -266,7 +258,7 @@ final_ASE
 
 
 
-MLP/RNN
+
 
 ####MLP Model for Florida Cases
 
@@ -315,8 +307,8 @@ lines(all_f, col = "blue")
 #Future Forecasts
 
 mlp.fit_fl_future =mlp(ts(newcases_fl$positiveIncrease), hd = 5, comb = "median")
-short_fl_mlp = forecast(mlp.fit_fl_future,h = 7)
 
+short_fl_mlp = forecast(mlp.fit_fl_future,h = 7)
 long_fl_mlp = forecast(mlp.fit_fl_future,h = 90)
 
 plot(newcases_fl$positiveIncrease, type = "l", xlim = c(1,145), main = "Florida Short Term MLP Forecasts", ylab = "Count of Cases", xlab= "Time")
@@ -330,14 +322,6 @@ lines(long_fl_mlp$mean, col = "blue")
 
 ```
 
-```{r}
-
-mlp.fit_fl_full = mlp(ts(newcases_fl$positiveIncrease), hd = 5)
-forecasts_fl_short = forecast(mlp.fit,h = 7)
-forecasts_fl_long = forecast(mlp.fit,h = 90)
-
-
-```
 
 
 ####Florida Cases Ensemble Model
@@ -347,9 +331,9 @@ forecasts_fl_long = forecast(mlp.fit,h = 90)
 mlp.fit_fl_final = mlp(ts(newcases_fl$positiveIncrease[1:123]), hd = 5, comb = "median")
 forecasts_fl_mlp = forecast(mlp.fit_fl_final, h = 12)
 
-forecasts_fl_arima = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_arma_21$phi, theta = fl_arma_21$theta, d=1, n.ahead = 12, plot = FALSE)
+forecasts_fl_arima = fore.aruma.wge(newcases_fl$positiveIncrease[i:(i+(trainingSize-1))],phi = fl_arima$phi, theta = fl_arima$theta, d=1, n.ahead = 12, plot = FALSE)
 
-ensemble_fl_fore = (forecasts_fl_mlp$mean + forecasts_fl_arima$f) / 2
+ensemble_fl_fore = (forecasts_fl_mlp$mean + final_pred_df$f) / 2
 
 ensemble_ASE = mean((newcases_fl$positiveIncrease[124:135] - ensemble_fl_fore)^2)
 ensemble_ASE
@@ -400,6 +384,8 @@ x = plotts.sample.wge(newcases_us$positiveIncrease)
 
 B. Non-Stationary Modeling
 
+We did not do any differencing of our data set to account for this non-stationarity. Going into this project we knew that because of the failure to contain the Covid-19 outbreak we would see large spikes of cases in recent time periods compared to distant time periods. We feel that this is an important aspect of our data that we want to portray in our models because we can see empirically in Florida and the United States as a whole that both individual behavior and political policy continue to trend towards further outbreak and rapid, almost exponential daily case growth. While some states with compliant individual behavior and strong political Covid-19 policies have shown “completed” Covid-19 curves, where daily case count begins to trend downwards towards zero, Florida is the opposite. Therefore, since we empirically expect the trend of non-stationarity to continue, we want that represented in our models. This is a fundamental assumption that our models are built on.
+
 ```{r}
 
 diff_us = artrans.wge(newcases_us$positiveIncrease, 1)
@@ -407,6 +393,8 @@ diff_us = artrans.wge(newcases_us$positiveIncrease, 1)
 ```
 
 C. Model IDing of stationary models 
+
+For ARIMA models we identify the stationary components below. 
 
 ```{r}
 #modeling as non-stationary
@@ -474,17 +462,6 @@ lines(ts(final_pred$f, start = 166, end = 177),  col = "blue")
 
 ```
 
-MLP/RNN
-
-```{r}
-
-mlp.fit = mlp(ts(newcases_us$positiveIncrease), hd.auto.type = "cv")
-mlp.fit
-plot(mlp.fit)
-
-#best option is 20 reps and 5 hds, lags at 1,3, and 4
-
-```
 
 
 ####US Cases MLP 
@@ -506,7 +483,7 @@ for( i in 1:(177-(trainingSize + horizon) + 1))
 
 ASEHolder
 #Distribution of ASEs on Two Week Periods
-hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for MLP Model Florida Data")
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for MLP Model United States Data")
 
 #Mean ASE 
 WindowedASE = mean(ASEHolder)
@@ -643,7 +620,11 @@ x = plotts.sample.wge(newcases_fl$positiveIncrease, arlimits = TRUE)
 
 B. Non-Stationary Modeling
 
+We did not do any differencing of our data set to account for this non-stationarity. Going into this project we knew that because of the failure to contain the Covid-19 outbreak we would see large spikes of cases in recent time periods compared to distant time periods. We feel that this is an important aspect of our data that we want to portray in our models because we can see empirically in Florida and the United States as a whole that both individual behavior and political policy continue to trend towards further outbreak and rapid, almost exponential daily case growth. While some states with compliant individual behavior and strong political Covid-19 policies have shown “completed” Covid-19 curves, where daily case count begins to trend downwards towards zero, Florida is the opposite. Therefore, since we empirically expect the trend of non-stationarity to continue, we want that represented in our models. This is a fundamental assumption that our models are built on.
+
 C. Model ID 
+
+In multivariate modeling, our identification of models occured specifically for each model and can be found at the beginning of those sections in particular. 
 
 D. Model Building 
 
@@ -830,12 +811,6 @@ lines(ensemble_fl_fore_long, col = "blue")
 
 ```
 
-Compare Multivariate Models
-
-```{r}
-
-
-```
 
 ###Multivariate US Models
 
@@ -852,8 +827,12 @@ x = plotts.sample.wge(newcases_us$positiveIncrease)
 
 B. Non-Stationary Modeling
 
+We did not do any differencing of our data set to account for this non-stationarity. Going into this project we knew that because of the failure to contain the Covid-19 outbreak we would see large spikes of cases in recent time periods compared to distant time periods. We feel that this is an important aspect of our data that we want to portray in our models because we can see empirically in Florida and the United States as a whole that both individual behavior and political policy continue to trend towards further outbreak and rapid, almost exponential daily case growth. While some states with compliant individual behavior and strong political Covid-19 policies have shown “completed” Covid-19 curves, where daily case count begins to trend downwards towards zero, Florida is the opposite. Therefore, since we empirically expect the trend of non-stationarity to continue, we want that represented in our models. This is a fundamental assumption that our models are built on.
+
 
 C. Model IDing of stationary models 
+
+In multivariate modeling, our identification of models occured specifically for each model and can be found at the beginning of those sections in particular. 
 
 
 
@@ -897,7 +876,7 @@ dim(newvar_fore_us)
 ####US MLR with Correlated Errors Model  
 ```{r}
 fit = lm(positiveIncrease~totalTestResultsIncrease + hospitalizedIncrease, data = newcases_us_multi[1:165,])
-
+summary(fit)
 est_tests = mean(tail(newcases_us_multi$totalTestResultsIncrease))
 est_hospital= mean(tail(newcases_us_multi$hospitalizedIncrease))
 newdata = data.frame(totalTestResultsIncrease = rep(est_tests,12), hospitalizedIncrease = rep(est_hospital,12))
@@ -928,7 +907,7 @@ for( i in 1:(177-(trainingSize + horizon) ))
 
 ASEHolder
 #Distribution of ASEs on Two Week Periods
-hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for MLR Model Florida Data")
+hist(ASEHolder, xlab = "ASE of model at a given Training Set",  main = "ASE Distribution for MLR Model United States Data")
 
 #Mean ASE 
 WindowedASE = mean(ASEHolder)
@@ -1078,14 +1057,7 @@ lines(ensemble_us_fore_long, col = "blue")
 ```
 
 
-##Forecasting with new data
-
-```{r}
-#final_us_data = read.csv()
-#final_fl_data = read.csv()
+##Conclusion
 
 
-
-
-```
-
+Given our data at hand we found our ARIMA(6,1,2) model to offer the best predictions for United States overall data. We found our Multiple Linear Regression model with correlated errors best predicted our Florida data. Given our current state of spread and recent trends of Covid19 spread, we expect increasing not optimistic forecasts of new case counts to show as most accurate in the coming days and months. 
